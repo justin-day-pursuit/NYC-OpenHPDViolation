@@ -11,9 +11,14 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
 from . import data_store
+from .analysis_context import build_analysis_context
 from .models import Violation
 from .serializers import ViolationSerializer
 from .socrata_client import discover_api_limits, get_record_count
+
+# session_ids that already sent their one-time data pack to the AI service
+# (process-local; resets when Django restarts — that is OK for local/dev)
+_AI_SESSIONS_WITH_DATA: set[str] = set()
 
 
 class ViolationViewSet(viewsets.ModelViewSet):
@@ -167,3 +172,101 @@ def ask_ai(request):
         )
 
     return Response(upstream.json())
+
+
+@api_view(["POST"])
+def analyze_data(request):
+    """
+    Analyze the local FULL SODA cache with Gemini (via the AI service).
+
+    Body JSON:
+      {
+        "prompt": "Compare Class C violations by borough",
+        "session_id": "optional-stable-id-from-browser",
+        "include_data": true   // only needed / used on the FIRST call
+      }
+
+    Token-saving rule:
+      For each session_id, the dataset summary is attached ONLY once.
+      Later prompts in that session send just the new question.
+
+    Non-technical tip:
+      1) Download the whole table: python manage.py fetch_soda_violations
+      2) Start AI service on port 8001
+      3) Type a question in the prompt bar under the inventory list
+    """
+    prompt = (request.data or {}).get("prompt", "").strip()
+    session_id = (request.data or {}).get("session_id", "").strip()
+    include_data_flag = bool((request.data or {}).get("include_data", False))
+
+    if not prompt:
+        return Response(
+            {"error": "Please provide a non-empty 'prompt' field."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    if not session_id:
+        # Fallback id so older clients still work
+        session_id = "default-session"
+
+    # Decide whether this session still needs its one-time data pack
+    already_sent = session_id in _AI_SESSIONS_WITH_DATA
+    # Also ask the AI service — it is the source of truth after Django restarts
+    if not already_sent:
+        try:
+            check = requests.get(
+                f"{settings.AI_SERVICE_URL.rstrip('/')}/sessions/{session_id}",
+                timeout=10,
+            )
+            if check.ok and check.json().get("has_data"):
+                already_sent = True
+                _AI_SESSIONS_WITH_DATA.add(session_id)
+        except requests.RequestException:
+            pass
+
+    # Token rule: attach the dataset summary only the first time for this session.
+    # Later prompts reuse the AI service's stored session context.
+    _ = include_data_flag  # browser hint kept for compatibility / logging
+    should_include_data = not already_sent
+
+    data_context = None
+    if should_include_data:
+        try:
+            # Summarize the WHOLE local table (not just the current UI page)
+            data_context = build_analysis_context()
+        except RuntimeError as exc:
+            return Response(
+                {
+                    "error": str(exc),
+                    "hint": "Run: python manage.py fetch_soda_violations",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+    ai_payload = {
+        "session_id": session_id,
+        "prompt": prompt,
+        "data_context": data_context,
+    }
+
+    ai_url = f"{settings.AI_SERVICE_URL.rstrip('/')}/analyze"
+    try:
+        upstream = requests.post(ai_url, json=ai_payload, timeout=180)
+        upstream.raise_for_status()
+    except requests.RequestException as exc:
+        return Response(
+            {
+                "error": "Could not reach the AI analysis service.",
+                "detail": str(exc),
+                "hint": "Is the FastAPI AI service running on port 8001?",
+            },
+            status=status.HTTP_502_BAD_GATEWAY,
+        )
+
+    body = upstream.json()
+    if body.get("data_included") or should_include_data:
+        _AI_SESSIONS_WITH_DATA.add(session_id)
+
+    # Helpful flags for the frontend status line
+    body["session_data_was_sent"] = bool(body.get("data_included"))
+    body["local_cached_rows"] = data_store.cached_row_count()
+    return Response(body)

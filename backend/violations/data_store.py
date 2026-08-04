@@ -19,21 +19,43 @@ from django.conf import settings
 from .socrata_client import fetch_all_to_sqlite
 
 
-# Columns we allow the API/frontend to sort by (must match SODA field names)
-SORTABLE_COLUMNS = {
+# Full SODA column set for Open HPD Violations (csn4-vhvf).
+# The frontend shows every one of these, even when a cell is blank.
+ALL_COLUMNS = [
     "violationid",
     "buildingid",
+    "registrationid",
+    "boroid",
     "boro",
     "housenumber",
+    "lowhousenumber",
+    "highhousenumber",
     "streetname",
+    "streetcode",
     "zip",
     "apartment",
+    "story",
+    "block",
+    "lot",
     "class",
     "inspectiondate",
+    "approveddate",
+    "originalcertifybydate",
+    "originalcorrectbydate",
+    "newcertifybydate",
+    "newcorrectbydate",
+    "certifieddate",
+    "ordernumber",
+    "novid",
+    "novdescription",
+    "novissueddate",
+    "currentstatusid",
     "currentstatus",
     "currentstatusdate",
-    "novdescription",
-}
+]
+
+# Any known column may be used for sorting from the inventory headers
+SORTABLE_COLUMNS = set(ALL_COLUMNS)
 
 
 def sqlite_path() -> Path:
@@ -154,7 +176,8 @@ def query_violations(
             "page_size": page_size,
             "total_pages": 0,
             "results": [],
-            "columns": [],
+            # Still advertise the full column set so the UI can render headers
+            "columns": list(ALL_COLUMNS),
             "cache_ready": False,
             "message": (
                 "Local SODA cache is empty. Run: "
@@ -198,9 +221,24 @@ def query_violations(
 
         # Column names from SQLite (stable order)
         col_info = conn.execute(f'PRAGMA table_info("{tbl}")').fetchall()
-        columns = [c["name"] for c in col_info]
+        sqlite_columns = [c["name"] for c in col_info]
 
-    results = [dict(row) for row in rows]
+    # Prefer live SQLite columns, then append any missing known SODA fields
+    columns = list(sqlite_columns)
+    for name in ALL_COLUMNS:
+        if name not in columns:
+            columns.append(name)
+
+    # Normalize every row so each column key is present (blank -> "")
+    results = []
+    for row in rows:
+        raw = dict(row)
+        normalized = {}
+        for name in columns:
+            value = raw.get(name)
+            normalized[name] = "" if value is None else value
+        results.append(normalized)
+
     total_pages = (total + page_size - 1) // page_size if total else 0
 
     return {

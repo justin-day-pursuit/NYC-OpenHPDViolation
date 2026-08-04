@@ -66,6 +66,7 @@ Useful endpoints:
 - `GET /api/soda-violations/status/`
 - `POST /api/soda-violations/refresh/`
 - `POST /api/ask-ai/` (forwards to the AI service)
+- `POST /api/analyze/` (session-aware Gemini analysis + charts/tables)
 
 ### One-time: download the full SODA table
 
@@ -87,6 +88,15 @@ python manage.py fetch_soda_violations --max-rows 5000
 ```
 
 This uses **sodapy** + **pandas**, matching Socrata’s documented Python approach. Add `SOCRATA_APP_TOKEN` first for higher rate limits.
+
+### AI data analysis (Gemini)
+
+1. Make sure the **full** local SODA cache exists (`fetch_soda_violations` without `--max-rows`).
+2. Start the AI service on port 8001.
+3. On the frontend, scroll under the inventory list to **Ask AI to analyze the data**.
+4. Type a prompt and press **Enter**.
+
+Token-saving rule: each browser tab sends the dataset summary to Gemini **only once**. Follow-up prompts in that tab send just the new question. Open a new tab (or clear sessionStorage) to start a fresh AI session.
 
 ### AI service (FastAPI + Gemini)
 

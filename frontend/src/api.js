@@ -76,3 +76,30 @@ export async function askAi(question) {
   }
   return data
 }
+
+/**
+ * POST /api/analyze/ — session-aware Gemini analysis with charts/tables.
+ *
+ * includeData should be true ONLY the first time in a browser tab session.
+ * Django builds a summary of the FULL local SODA cache and sends it once.
+ *
+ * @param {{ prompt: string, sessionId: string, includeData: boolean }} args
+ */
+export async function analyzeWithAi({ prompt, sessionId, includeData }) {
+  const response = await fetch(`${API_BASE}/api/analyze/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      prompt,
+      session_id: sessionId,
+      include_data: includeData,
+    }),
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(
+      data.detail || data.error || `Analysis request failed (${response.status})`,
+    )
+  }
+  return data
+}

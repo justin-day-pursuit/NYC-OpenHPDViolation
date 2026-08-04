@@ -6,20 +6,29 @@ Start locally (from ai-service/):
 
 Docs (interactive):
   http://127.0.0.1:8001/docs
+
+Main jobs:
+  /health  — is the service up?
+  /ask     — simple Q&A (no dataset session)
+  /analyze — data analysis with charts/tables (session-aware)
 """
+
+from typing import Any
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
+from .analyze import analyze_prompt
 from .config import CORS_ALLOWED_ORIGINS, GEMINI_MODEL
 from .gemini_client import ask_gemini
+from . import sessions
 
 # Create the web app
 app = FastAPI(
     title="NYC Open HPD Violation — AI Service",
-    description="Small FastAPI service that answers questions with Google Gemini.",
-    version="0.1.0",
+    description="Gemini helpers for Q&A and session-based data analysis.",
+    version="0.2.0",
 )
 
 # Allow the React frontend (and local tools) to call this API from a browser
@@ -45,6 +54,20 @@ class AskResponse(BaseModel):
     model: str
 
 
+class AnalyzeRequest(BaseModel):
+    """
+    JSON body for POST /analyze.
+
+    session_id   — stable id from the browser tab (sessionStorage)
+    prompt       — what the user typed in the analysis prompt bar
+    data_context — dataset summary; send ONLY on the first call for a session
+    """
+
+    session_id: str = Field(..., min_length=1)
+    prompt: str = Field(..., min_length=1)
+    data_context: dict[str, Any] | None = None
+
+
 @app.get("/health")
 def health():
     """
@@ -52,6 +75,18 @@ def health():
     Does not call Gemini — just confirms the service process is up.
     """
     return {"status": "ok", "service": "fastapi-ai"}
+
+
+@app.get("/sessions/{session_id}")
+def session_status(session_id: str):
+    """
+    Tiny helper so Django/frontend can ask:
+    "Has this session already received its one-time data pack?"
+    """
+    return {
+        "session_id": session_id,
+        "has_data": sessions.has_data(session_id),
+    }
 
 
 @app.post("/ask", response_model=AskResponse)
@@ -62,7 +97,6 @@ def ask(payload: AskRequest):
     try:
         answer = ask_gemini(payload.question.strip())
     except RuntimeError as exc:
-        # Missing key / empty response / config problems
         raise HTTPException(status_code=500, detail=str(exc)) from exc
     except Exception as exc:  # pragma: no cover - network/API failures
         raise HTTPException(
@@ -71,3 +105,28 @@ def ask(payload: AskRequest):
         ) from exc
 
     return AskResponse(answer=answer, model=GEMINI_MODEL)
+
+
+@app.post("/analyze")
+def analyze(payload: AnalyzeRequest):
+    """
+    Session-aware data analysis.
+
+    First call for a session_id should include data_context.
+    Later calls only need session_id + prompt (saves tokens).
+    """
+    try:
+        return analyze_prompt(
+            session_id=payload.session_id.strip(),
+            prompt=payload.prompt.strip(),
+            data_context=payload.data_context,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    except Exception as exc:  # pragma: no cover
+        raise HTTPException(
+            status_code=502,
+            detail=f"Analysis failed: {exc}",
+        ) from exc
