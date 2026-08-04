@@ -1,0 +1,9 @@
+/* Global reset leftovers — most styling lives in App.css */
+body {
+  margin: 0;
+}
+
+button,
+textarea {
+  font: inherit;
+}

@@ -1,0 +1,39 @@
+/*
+  Simple starter styles for the home page.
+  Tweak colors/spacing here as the app grows.
+*/
+
+:root {
+  --ink: #1c2430;
+  --paper: #f6f3ee;
+  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  color: var(--ink);
+  background: linear-gradient(180deg, #f8f6f2 0%, #ece7df 100%);
+  line-height: 1.5;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.page {
+  width: min(720px, calc(100% - 2rem));
+  margin: 0 auto;
+  padding: 4rem 0;
+}
+
+.page h1 {
+  margin: 0;
+  font-size: clamp(2rem, 5vw, 2.75rem);
+  font-weight: 600;
+}

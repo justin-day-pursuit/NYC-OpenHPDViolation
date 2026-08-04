@@ -1,0 +1,88 @@
+# =============================================================================
+# Git ignore — files that should NEVER be committed to GitHub
+# =============================================================================
+# Tip: Anything with secrets (API keys, passwords) must stay out of git.
+# If you accidentally commit a key, rotate/replace that key immediately.
+# =============================================================================
+
+# --- Environment / secrets ---------------------------------------------------
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+secrets/
+
+# --- Python ------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.venv/
+venv/
+ENV/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.tox/
+*.log
+
+# --- Django ------------------------------------------------------------------
+*.sqlite3
+db.sqlite3
+local_settings.py
+staticfiles/
+media/
+
+# --- Node / React ------------------------------------------------------------
+node_modules/
+frontend/dist/
+frontend/build/
+.npm
+.yarn
+*.tsbuildinfo
+.vite/
+
+# --- OS / editor -------------------------------------------------------------
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# --- Testing / CI artifacts (builds kept; no video/screenshot capture) -------
+# We intentionally do NOT set up Playwright/Cypress recording or screenshots.
+coverage/
+test-results/
+playwright-report/
+cypress/videos/
+cypress/screenshots/
+*.webm
+*.mp4
+
+# --- Misc --------------------------------------------------------------------
+*.bak
+tmp/
+temp/
+.cache/
