@@ -21,12 +21,42 @@ export async function fetchHealth() {
 }
 
 /**
- * GET /api/violations/ — list stored violation records.
+ * GET /api/soda-violations/ — filtered / sorted / paged SODA cache rows.
+ *
+ * @param {object} params filter + sort + page options
  */
-export async function fetchViolations() {
-  const response = await fetch(`${API_BASE}/api/violations/`)
+export async function fetchSodaViolations(params = {}) {
+  const query = new URLSearchParams()
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && String(value).trim() !== '') {
+      query.set(key, value)
+    }
+  })
+  const response = await fetch(`${API_BASE}/api/soda-violations/?${query}`)
   if (!response.ok) {
-    throw new Error(`Could not load violations (${response.status})`)
+    throw new Error(`Could not load SODA violations (${response.status})`)
+  }
+  return response.json()
+}
+
+/**
+ * GET /api/soda-violations/filters/ — dropdown option lists
+ */
+export async function fetchSodaFilterOptions() {
+  const response = await fetch(`${API_BASE}/api/soda-violations/filters/`)
+  if (!response.ok) {
+    throw new Error(`Could not load filter options (${response.status})`)
+  }
+  return response.json()
+}
+
+/**
+ * GET /api/soda-violations/status/ — is the local cache ready?
+ */
+export async function fetchSodaStatus() {
+  const response = await fetch(`${API_BASE}/api/soda-violations/status/`)
+  if (!response.ok) {
+    throw new Error(`Could not load SODA status (${response.status})`)
   }
   return response.json()
 }

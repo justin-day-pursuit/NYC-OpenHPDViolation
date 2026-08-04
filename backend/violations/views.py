@@ -10,13 +10,15 @@ from rest_framework import status, viewsets
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
+from . import data_store
 from .models import Violation
 from .serializers import ViolationSerializer
+from .socrata_client import discover_api_limits, get_record_count
 
 
 class ViolationViewSet(viewsets.ModelViewSet):
     """
-    Full CRUD API for Violation records.
+    Full CRUD API for Violation records stored in Django's own database.
 
     Examples (once the server is running):
       GET    /api/violations/       — list all
@@ -29,6 +31,106 @@ class ViolationViewSet(viewsets.ModelViewSet):
 
     queryset = Violation.objects.all()
     serializer_class = ViolationSerializer
+
+
+@api_view(["GET"])
+def soda_violations(request):
+    """
+    Read the local SODA cache with filters + sorting + pagination.
+
+    Query parameters (all optional):
+      search   — free-text match on street, house #, description, id, zip, apt
+      boro     — exact borough, e.g. BRONX
+      class    — violation class A / B / C
+      status   — substring match on currentstatus
+      sort     — column name (default: inspectiondate)
+      order    — asc or desc (default: desc)
+      page     — page number starting at 1
+      page_size — rows per page (max 200)
+
+    Example:
+      /api/soda-violations/?boro=BRONX&class=C&sort=inspectiondate&order=desc
+    """
+    def _as_int(value, default):
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return default
+
+    payload = data_store.query_violations(
+        search=request.query_params.get("search", ""),
+        boro=request.query_params.get("boro", ""),
+        violation_class=request.query_params.get("class", ""),
+        status=request.query_params.get("status", ""),
+        sort=request.query_params.get("sort", "inspectiondate"),
+        order=request.query_params.get("order", "desc"),
+        page=_as_int(request.query_params.get("page", 1), 1),
+        page_size=_as_int(request.query_params.get("page_size", 50), 50),
+    )
+    return Response(payload)
+
+
+@api_view(["GET"])
+def soda_filter_options(request):
+    """
+    Distinct borough / class / status values for frontend dropdowns.
+    """
+    return Response(data_store.filter_options())
+
+
+@api_view(["GET"])
+def soda_status(request):
+    """
+    Show whether the local cache is ready.
+
+    Optional query flags:
+      ?remote=1  — also COUNT(*) on Socrata (slower)
+      ?limits=1  — also probe rate / page limits on Socrata (slower)
+    """
+    payload = {
+        "cache_ready": data_store.cache_exists(),
+        "cached_rows": data_store.cached_row_count(),
+        "dataset_id": settings.SOCRATA_DATASET_ID,
+        "domain": settings.SOCRATA_DOMAIN,
+        "has_app_token": bool(settings.SOCRATA_APP_TOKEN),
+    }
+    if request.query_params.get("limits") in ("1", "true", "yes"):
+        try:
+            payload["limits"] = discover_api_limits()
+        except Exception as exc:  # pragma: no cover - network failures
+            payload["limits_error"] = str(exc)
+    if request.query_params.get("remote") in ("1", "true", "yes"):
+        try:
+            payload["remote_rows"] = get_record_count()
+        except Exception as exc:  # pragma: no cover - network failures
+            payload["remote_error"] = str(exc)
+    return Response(payload)
+
+
+@api_view(["POST"])
+def soda_refresh(request):
+    """
+    Re-download the full SODA table into the local SQLite cache.
+
+    This can take a long time (~3 million rows). Prefer the management command
+    for the first load:
+      python manage.py fetch_soda_violations
+    """
+    try:
+        summary = data_store.refresh_from_socrata()
+    except Exception as exc:
+        return Response(
+            {
+                "error": "SODA refresh failed.",
+                "detail": str(exc),
+                "hint": (
+                    "Check SOCRATA_APP_TOKEN in .env and that the dataset id "
+                    "csn4-vhvf is reachable."
+                ),
+            },
+            status=status.HTTP_502_BAD_GATEWAY,
+        )
+    return Response({"status": "ok", **summary})
 
 
 @api_view(["POST"])

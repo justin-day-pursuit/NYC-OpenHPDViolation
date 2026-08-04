@@ -53,6 +53,11 @@ local_settings.py
 staticfiles/
 media/
 
+# --- Local SODA data cache (can be millions of rows — do not commit) ---------
+backend/data/
+*.parquet
+*.feather
+
 # --- Node / React ------------------------------------------------------------
 node_modules/
 frontend/dist/

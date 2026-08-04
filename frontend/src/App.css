@@ -1,15 +1,27 @@
 /*
-  Simple starter styles for the home page.
-  Tweak colors/spacing here as the app grows.
+  Inventory / database-list layout for Open HPD Violations.
+  Dense rows, toolbar controls, scrollable item container.
 */
 
 :root {
-  --ink: #1c2430;
-  --paper: #f6f3ee;
-  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --ink: #15202b;
+  --muted: #5c6b7a;
+  --line: #d5dbe3;
+  --panel: #ffffff;
+  --canvas: #edf1f5;
+  --header: #f4f7fa;
+  --accent: #0b5fff;
+  --ok: #0f7a43;
+  --warn: #9a3412;
+  --row-hover: #f0f5fb;
+  --class-a: #1f6b4a;
+  --class-b: #9a6b12;
+  --class-c: #9a3412;
+  --shadow: 0 1px 2px rgba(21, 32, 43, 0.06), 0 8px 24px rgba(21, 32, 43, 0.06);
+  font-family: "IBM Plex Sans", "Avenir Next", "Segoe UI", sans-serif;
   color: var(--ink);
-  background: linear-gradient(180deg, #f8f6f2 0%, #ece7df 100%);
-  line-height: 1.5;
+  background: var(--canvas);
+  line-height: 1.4;
 }
 
 * {
@@ -26,14 +38,330 @@ body {
   min-height: 100vh;
 }
 
-.page {
-  width: min(720px, calc(100% - 2rem));
+.app-shell {
+  width: min(1280px, calc(100% - 1.5rem));
   margin: 0 auto;
-  padding: 4rem 0;
+  padding: 1.25rem 0 2rem;
+  display: grid;
+  gap: 0.85rem;
+  min-height: calc(100vh - 0.5rem);
 }
 
-.page h1 {
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: end;
+  flex-wrap: wrap;
+}
+
+.brand {
+  margin: 0 0 0.2rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.topbar h1 {
   margin: 0;
-  font-size: clamp(2rem, 5vw, 2.75rem);
+  font-size: clamp(1.5rem, 3vw, 1.9rem);
+  font-weight: 650;
+}
+
+.topbar-meta {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.35rem 0.65rem;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  font-size: 0.82rem;
+}
+
+.pill.ok {
+  color: var(--ok);
+  border-color: #b9dfc8;
+  background: #eefaf2;
+}
+
+.pill.warn {
+  color: var(--warn);
+  border-color: #f0c7b4;
+  background: #fff4ee;
+}
+
+.pill.muted {
+  color: var(--muted);
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  align-items: end;
+  padding: 0.85rem;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+}
+
+.field {
+  display: grid;
+  gap: 0.28rem;
+  min-width: 8rem;
+}
+
+.field.grow {
+  flex: 1 1 16rem;
+  min-width: 14rem;
+}
+
+.field.wide {
+  min-width: 14rem;
+  flex: 1 1 12rem;
+}
+
+.field span {
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.field input,
+.field select,
+.pager button,
+.ghost-btn {
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--line);
+  background: #fbfcfd;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.92rem;
+}
+
+.ghost-btn {
+  background: transparent;
+  cursor: pointer;
+  height: 2.45rem;
+}
+
+.ghost-btn:hover {
+  background: var(--header);
+}
+
+.inventory {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 0.65rem;
+  min-height: 0;
+  flex: 1;
+}
+
+.inventory-status {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: baseline;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.inventory-status p {
+  margin: 0;
+}
+
+.error-text {
+  color: var(--warn);
+}
+
+.list-frame {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  min-height: 28rem;
+  max-height: calc(100vh - 15rem);
+  display: grid;
+  grid-template-rows: auto 1fr;
+  overflow: hidden;
+}
+
+.list-header,
+.item-row {
+  display: grid;
+  gap: 0.75rem;
+  align-items: start;
+  padding: 0.7rem 0.9rem;
+}
+
+.list-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--header);
+  border-bottom: 1px solid var(--line);
+}
+
+.col-head {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.col-head.active,
+.col-head:hover {
+  color: var(--ink);
+}
+
+.item-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+}
+
+.item-row {
+  border-bottom: 1px solid var(--line);
+  font-size: 0.9rem;
+}
+
+.item-row:hover {
+  background: var(--row-hover);
+}
+
+.item-row:last-child {
+  border-bottom: 0;
+}
+
+.mono {
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.84rem;
+}
+
+.address-cell {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.address-cell strong {
   font-weight: 600;
+}
+
+.address-cell em {
+  font-style: normal;
+  color: var(--muted);
+  font-size: 0.82rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status-cell {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.class-badge {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  min-width: 2rem;
+  padding: 0.15rem 0.4rem;
+  border: 1px solid var(--line);
+  font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  font-size: 0.8rem;
+  font-weight: 650;
+  background: #f7f9fb;
+}
+
+.class-badge.class-A {
+  color: var(--class-a);
+  border-color: #b7d8c6;
+  background: #eef8f2;
+}
+
+.class-badge.class-B {
+  color: var(--class-b);
+  border-color: #e2d0a0;
+  background: #fff8e8;
+}
+
+.class-badge.class-C {
+  color: var(--class-c);
+  border-color: #f0c7b4;
+  background: #fff4ee;
+}
+
+.empty-row {
+  padding: 2rem 1rem;
+  color: var(--muted);
+  text-align: center;
+}
+
+.pager {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.pager button {
+  min-width: 7rem;
+  background: var(--ink);
+  color: white;
+  border: 0;
+  cursor: pointer;
+}
+
+.pager button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+@media (max-width: 900px) {
+  .list-frame {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .list-header {
+    display: none;
+  }
+
+  .item-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 0.4rem 0.75rem;
+  }
+
+  .item-row .address-cell {
+    grid-column: 1 / -1;
+  }
+
+  .item-row .status-cell {
+    grid-column: 1 / -1;
+    white-space: normal;
+  }
+
+  .address-cell em {
+    white-space: normal;
+  }
 }

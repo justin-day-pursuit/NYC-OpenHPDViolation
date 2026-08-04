@@ -153,3 +153,25 @@ CORS_ALLOWED_ORIGINS = [
 
 # URL of the FastAPI AI service (used when Django proxies AI requests)
 AI_SERVICE_URL = os.getenv("AI_SERVICE_URL", "http://127.0.0.1:8001")
+
+# ---------------------------------------------------------------------------
+# NYC Open Data / Socrata (SODA) settings — filled from root .env
+# ---------------------------------------------------------------------------
+# Domain host only (no https://). sodapy adds the scheme for you.
+SOCRATA_DOMAIN = os.getenv("SOCRATA_DOMAIN", "data.cityofnewyork.us")
+# 4x4 dataset id from the Open Data URL / SODA3 view path
+SOCRATA_DATASET_ID = os.getenv("SOCRATA_DATASET_ID", "csn4-vhvf")
+# App token raises rate limits; paste yours into .env
+SOCRATA_APP_TOKEN = os.getenv("SOCRATA_APP_TOKEN", "")
+# Optional login (needed only to create/update/delete remote rows)
+SOCRATA_USERNAME = os.getenv("SOCRATA_USERNAME", "")
+SOCRATA_PASSWORD = os.getenv("SOCRATA_PASSWORD", "")
+# Large downloads can be slow — give each request enough time
+SOCRATA_TIMEOUT = int(os.getenv("SOCRATA_TIMEOUT", "300"))
+# Rows per page when paging past the default 1000-row SODA limit
+SOCRATA_PAGE_SIZE = int(os.getenv("SOCRATA_PAGE_SIZE", "50000"))
+
+# Where we store the downloaded full table locally (SQLite file)
+SOCRATA_DATA_DIR = BASE_DIR / "data"
+SOCRATA_SQLITE_PATH = SOCRATA_DATA_DIR / "soda_violations.sqlite3"
+SOCRATA_TABLE_NAME = "soda_violations"

@@ -30,10 +30,18 @@ From the project root:
 cp .env.example .env
 ```
 
-Open `.env` and paste your key:
+Open `.env` and paste your keys:
 
 ```bash
 GOOGLE_GEMINI_API_KEY=paste_your_key_here
+SOCRATA_APP_TOKEN=paste_your_nyc_open_data_app_token_here
+```
+
+Optional Socrata login fields (only needed to create/update remote rows):
+
+```bash
+SOCRATA_USERNAME=
+SOCRATA_PASSWORD=
 ```
 
 `.env` is listed in `.gitignore` and must not be committed.
@@ -53,7 +61,32 @@ Useful endpoints:
 
 - `GET /api/health/`
 - `GET/POST /api/violations/`
+- `GET /api/soda-violations/` (filterable / sortable SODA cache)
+- `GET /api/soda-violations/filters/`
+- `GET /api/soda-violations/status/`
+- `POST /api/soda-violations/refresh/`
 - `POST /api/ask-ai/` (forwards to the AI service)
+
+### One-time: download the full SODA table
+
+The Open HPD Violations dataset (`csn4-vhvf`) has millions of rows. SODA defaults to 1000 rows per request, so the backend always downloads in this order:
+
+1. Ask the API for rate / page limits (probe request + max `$limit`)
+2. Ask for the entry count (`COUNT(*)`)
+3. Page with `limit` + `offset` until every row is downloaded
+4. Store the full table in `backend/data/soda_violations.sqlite3` (gitignored)
+
+```bash
+cd backend
+source .venv/bin/activate
+# Full table (~2.9 million rows — can take a while):
+python manage.py fetch_soda_violations
+
+# Or a quicker sample while testing:
+python manage.py fetch_soda_violations --max-rows 5000
+```
+
+This uses **sodapy** + **pandas**, matching Socrata’s documented Python approach. Add `SOCRATA_APP_TOKEN` first for higher rate limits.
 
 ### AI service (FastAPI + Gemini)
 
@@ -130,8 +163,9 @@ GitHub Actions runs the same script on push/PR (`.github/workflows/build-checks.
 ├── scripts/test-builds.sh    # Local/CI build checks
 ├── backend/                  # Django + DRF
 │   ├── manage.py
+│   ├── data/                 # Local SODA SQLite cache (gitignored)
 │   ├── config/               # Project settings + root URLs
-│   └── violations/           # Violation models, API, admin
+│   └── violations/           # Violation models, SODA client, API
 ├── ai-service/               # FastAPI + Gemini
 │   └── app/
 │       ├── main.py           # HTTP routes
@@ -152,6 +186,8 @@ GitHub Actions runs the same script on push/PR (`.github/workflows/build-checks.
 | Frontend says Django is not reachable | Start Django on port 8000 |
 | Ask AI returns 502 / cannot reach AI service | Start FastAPI on port 8001 |
 | Gemini error about missing API key | Put `GOOGLE_GEMINI_API_KEY` in the root `.env`, then restart FastAPI |
+| Frontend says SODA cache is empty | Run `python manage.py fetch_soda_violations` and set `SOCRATA_APP_TOKEN` |
+| SODA download is very slow / throttled | Add a valid `SOCRATA_APP_TOKEN` in `.env`, then re-run the fetch command |
 | CORS errors in the browser | Confirm `CORS_ALLOWED_ORIGINS` in `.env` includes your frontend URL |
 
 ---
