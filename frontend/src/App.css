@@ -527,3 +527,219 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Analysis journey (building concentration) — sits under Overview charts
+   Same panel / card language as overview so the page feels continuous.
+   --------------------------------------------------------------------------- */
+
+.concentration-journey {
+  display: grid;
+  gap: 0.85rem;
+  padding: 1rem;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+}
+
+.concentration-journey h2 {
+  margin: 0 0 0.35rem;
+  font-size: 1.2rem;
+}
+
+.concentration-journey code {
+  font-size: 0.85em;
+  background: var(--header);
+  padding: 0.1em 0.35em;
+  border: 1px solid var(--line);
+}
+
+/* Four even KPI tiles across the top of the journey */
+.journey-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.journey-kpi {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.85rem 1rem;
+  background: var(--header);
+  border: 1px solid var(--line);
+  min-height: 7.5rem;
+  align-content: start;
+}
+
+.journey-kpi-value {
+  font-size: 1.65rem;
+  font-weight: 650;
+  line-height: 1.1;
+  color: var(--accent);
+}
+
+.journey-kpi-label {
+  font-size: 0.86rem;
+  color: var(--muted);
+  max-width: 28ch;
+}
+
+.journey-step {
+  display: grid;
+  gap: 0.75rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid var(--line);
+}
+
+.journey-step-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.journey-points {
+  margin: 0;
+  padding-left: 1.2rem;
+  display: grid;
+  gap: 0.45rem;
+  color: var(--ink);
+  font-size: 0.95rem;
+  max-width: 85ch;
+}
+
+.journey-points li::marker {
+  color: var(--muted);
+}
+
+.journey-claim {
+  margin: 0;
+  padding: 0.85rem 1rem;
+  background: var(--header);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  font-size: 0.98rem;
+  max-width: 85ch;
+}
+
+/* Journey charts reuse .stats-grid; force even 2-column rhythm */
+.journey-grid {
+  margin-top: 0.15rem;
+}
+
+.journey-grid > .analysis-card:last-child {
+  grid-column: auto;
+}
+
+.journey-table-wrap {
+  overflow: auto;
+  border: 1px solid var(--line);
+}
+
+.journey-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.journey-table th,
+.journey-table td {
+  border-bottom: 1px solid var(--line);
+  padding: 0.55rem 0.7rem;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.journey-table th {
+  background: var(--header);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+}
+
+.journey-table td.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.journey-table tbody tr:hover {
+  background: var(--row-hover);
+}
+
+/* Final insight block — slightly stronger claim treatment */
+.journey-final {
+  padding-top: 0.75rem;
+}
+
+.journey-claim-final {
+  border-left-width: 4px;
+  font-size: 1.02rem;
+  line-height: 1.45;
+}
+
+.journey-kpi-accent {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--line));
+  background: color-mix(in srgb, var(--accent) 6%, var(--header));
+}
+
+.journey-argue-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.journey-argue {
+  padding: 0.85rem 1rem;
+  background: var(--header);
+  border: 1px solid var(--line);
+}
+
+.journey-argue h4 {
+  margin: 0 0 0.5rem;
+  font-size: 0.92rem;
+  font-weight: 650;
+}
+
+.journey-argue ul {
+  margin: 0;
+  padding-left: 1.15rem;
+  display: grid;
+  gap: 0.4rem;
+  font-size: 0.9rem;
+  color: var(--ink);
+}
+
+.journey-argue li::marker {
+  color: var(--muted);
+}
+
+.journey-one-liner {
+  margin: 0.25rem 0 0;
+  padding: 0.95rem 1.05rem;
+  background: color-mix(in srgb, var(--accent) 8%, var(--header));
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line));
+  border-left: 4px solid var(--accent);
+  font-size: 1.02rem;
+  line-height: 1.45;
+  max-width: 90ch;
+}
+
+@media (max-width: 900px) {
+  .journey-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .journey-argue-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .journey-kpis {
+    grid-template-columns: 1fr;
+  }
+}

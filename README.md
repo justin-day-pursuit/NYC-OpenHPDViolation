@@ -165,10 +165,26 @@ jupyter notebook open_hpd_live_analysis.ipynb
 python run_live_analysis.py
 # Optional SoQL filter:
 python run_live_analysis.py --where "boro='BRONX'"
+
+# Option C — building concentration analysis (feeds the website section)
+# Counts distinct violationid only; writes frontend/public/analysis/*.json
+# Can take 10–20 minutes (pages every building aggregate from SODA).
+python run_building_concentration.py
+
+# Option D — hazard persistence + NOV problem-theme clustering (extends Option C)
+# Requires Option C JSON first. Usually 2–5 minutes.
+python run_hazard_theme_analysis.py
+
+# Option E — final insight (Class B moisture × multi-dwelling × age×theme)
+# Requires Option C JSON first. Usually a few minutes.
+python run_final_insight.py
 ```
 
 Needs `SOCRATA_APP_TOKEN` in the root `.env`. First COUNT/GROUP BY calls can take
 1–3 minutes on ~3M remote rows. Django does **not** need to be running.
+
+The **Analysis journey** block on the homepage (directly under Overview charts) reads
+`frontend/public/analysis/building_concentration.json`. Re-run Options C → D → E to refresh it.
 
 ---
 
@@ -183,7 +199,9 @@ Needs `SOCRATA_APP_TOKEN` in the root `.env`. First COUNT/GROUP BY calls can tak
 ├── notebooks/                # Live SODA pandas analysis (same source as the app)
 │   ├── soda_live.py          # API helpers (sodapy)
 │   ├── open_hpd_live_analysis.ipynb
-│   └── run_live_analysis.py  # Same analysis without Jupyter
+│   ├── run_live_analysis.py  # Same analysis without Jupyter
+│   └── run_building_concentration.py  # Building concentration → website JSON
+├── frontend/public/analysis/ # Snapshot JSON for the Analysis journey section
 ├── backend/                  # Django + DRF (live SODA queries, no data cache file)
 │   ├── manage.py
 │   ├── config/               # Project settings + root URLs

@@ -4,6 +4,7 @@
  * Shows EVERY column returned by the SODA cache (even when blank).
  * Layout:
  *  - overview charts from SQL (borough / class / status / monthly)
+ *  - analysis journey (building concentration of open violations)
  *  - toolbar with search, filters, sort, and page size
  *  - horizontally scrollable item list with sortable column headers
  *  - AI prompt bar under the list (Enter = analyze with Gemini)
@@ -11,10 +12,12 @@
  *
  * Tip: set SOCRATA_APP_TOKEN in the root .env so live SODA requests work.
  * Charts and the inventory list query NYC Open Data on demand (no local cache).
+ * The analysis journey section reads a snapshot JSON (see notebooks/).
  */
 
 import { useEffect, useMemo, useState } from 'react'
 import AnalysisPanel from './AnalysisPanel'
+import ConcentrationJourney from './ConcentrationJourney'
 import StatsDashboard from './StatsDashboard'
 import {
   fetchSodaFilterOptions,
@@ -253,6 +256,9 @@ function App() {
 
       {/* Live SODA overview charts (no AI) + Refresh */}
       <StatsDashboard />
+
+      {/* Building concentration analysis journey (snapshot JSON under Overview) */}
+      <ConcentrationJourney />
 
       {/* Toolbar: search / filter / sort / page size */}
       <section className="toolbar" aria-label="List controls">

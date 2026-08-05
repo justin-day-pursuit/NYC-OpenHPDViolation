@@ -9,6 +9,7 @@
 
 sodapy>=2.2,<3.0
 pandas>=2.2,<3.0
+numpy>=1.26,<3.0
 python-dotenv>=1.0,<2.0
 matplotlib>=3.8,<4.0
 jupyter>=1.0,<2.0
