@@ -1,0 +1,15 @@
+# Python packages for the live SODA analysis notebooks / scripts.
+# Install (from this notebooks/ folder):
+#   python3 -m venv .venv
+#   source .venv/bin/activate
+#   pip install -r requirements.txt
+#
+# Non-technical tip: you do NOT need Django running for these notebooks.
+# They talk straight to NYC Open Data (fresh source data).
+
+sodapy>=2.2,<3.0
+pandas>=2.2,<3.0
+python-dotenv>=1.0,<2.0
+matplotlib>=3.8,<4.0
+jupyter>=1.0,<2.0
+ipykernel>=6.29,<7.0

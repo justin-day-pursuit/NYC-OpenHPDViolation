@@ -86,6 +86,11 @@ cypress/screenshots/
 *.webm
 *.mp4
 
+# --- Notebooks (local venv / outputs / Jupyter checkpoints) ------------------
+notebooks/.venv/
+notebooks/output/
+.ipynb_checkpoints/
+
 # --- Misc --------------------------------------------------------------------
 *.bak
 tmp/

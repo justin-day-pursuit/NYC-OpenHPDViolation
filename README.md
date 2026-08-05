@@ -166,7 +166,33 @@ GitHub Actions runs the same script on push/PR (`.github/workflows/build-checks.
 
 ---
 
-## 4) Project map (where to edit things)
+## 4) Live analysis notebooks (fresh SODA source — not local SQLite)
+
+For offline / exploratory analysis that should match **current** NYC Open Data
+(not a possibly stale `backend/data/soda_violations.sqlite3` download), use the
+helpers under `notebooks/`. They call the Socrata SODA API directly (`csn4-vhvf`).
+
+```bash
+cd notebooks
+python3 -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+
+# Option A — Jupyter notebook
+jupyter notebook open_hpd_live_analysis.ipynb
+
+# Option B — plain script (prints tables + writes PNGs to notebooks/output/)
+python run_live_analysis.py
+# Optional SoQL filter:
+python run_live_analysis.py --where "boro='BRONX'"
+```
+
+Needs `SOCRATA_APP_TOKEN` in the root `.env`. First COUNT/GROUP BY calls can take
+1–3 minutes on ~3M remote rows. Django does **not** need to be running.
+
+---
+
+## 5) Project map (where to edit things)
 
 ```text
 .
@@ -174,6 +200,10 @@ GitHub Actions runs the same script on push/PR (`.github/workflows/build-checks.
 ├── .gitignore                # Keeps .env, venvs, node_modules out of git
 ├── README.md
 ├── scripts/test-builds.sh    # Local/CI build checks
+├── notebooks/                # Live SODA pandas analysis (not local SQLite)
+│   ├── soda_live.py          # API helpers (sodapy)
+│   ├── open_hpd_live_analysis.ipynb
+│   └── run_live_analysis.py  # Same analysis without Jupyter
 ├── backend/                  # Django + DRF
 │   ├── manage.py
 │   ├── data/                 # Local SODA SQLite cache (gitignored)
@@ -194,7 +224,7 @@ GitHub Actions runs the same script on push/PR (`.github/workflows/build-checks.
 
 ---
 
-## 5) Common problems
+## 6) Common problems
 
 | Symptom | Likely fix |
 | --- | --- |
@@ -207,7 +237,7 @@ GitHub Actions runs the same script on push/PR (`.github/workflows/build-checks.
 
 ---
 
-## 6) Security notes
+## 7) Security notes
 
 - Never commit `.env`
 - Never put the Gemini key in frontend code or any `VITE_` variable
