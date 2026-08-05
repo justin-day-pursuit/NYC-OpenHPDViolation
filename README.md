@@ -63,6 +63,7 @@ Useful endpoints:
 - `GET/POST /api/violations/`
 - `GET /api/soda-violations/` (filterable / sortable SODA cache)
 - `GET /api/soda-violations/filters/`
+- `GET /api/soda-violations/stats/` (dashboard chart counts: borough / class / status / monthly)
 - `GET /api/soda-violations/status/`
 - `POST /api/soda-violations/refresh/`
 - `POST /api/ask-ai/` (forwards to the AI service)
@@ -175,7 +176,7 @@ GitHub Actions runs the same script on push/PR (`.github/workflows/build-checks.
 │   ├── manage.py
 │   ├── data/                 # Local SODA SQLite cache (gitignored)
 │   ├── config/               # Project settings + root URLs
-│   └── violations/           # Violation models, SODA client, API
+│   └── violations/           # Violation models, SODA client, API, dashboard stats
 ├── ai-service/               # FastAPI + Gemini
 │   └── app/
 │       ├── main.py           # HTTP routes
@@ -183,8 +184,10 @@ GitHub Actions runs the same script on push/PR (`.github/workflows/build-checks.
 │       └── config.py         # Reads root .env
 └── frontend/                 # React (Vite)
     └── src/
-        ├── App.jsx           # Main page UI
-        └── api.js            # Calls Django
+        ├── App.jsx              # Main page UI
+        ├── StatsDashboard.jsx   # SQL overview charts (no AI)
+        ├── AnalysisPanel.jsx    # Gemini prompt + charts/tables
+        └── api.js               # Calls Django
 ```
 
 ---

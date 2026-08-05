@@ -62,6 +62,24 @@ export async function fetchSodaStatus() {
 }
 
 /**
+ * GET /api/soda-violations/stats/ — dashboard chart counts (no AI).
+ *
+ * Returns by_boro / by_class / by_currentstatus / by_month as
+ * [{ name, value }, ...] ready for Recharts.
+ *
+ * Non-technical tip:
+ *   If this fails, start Django (`python manage.py runserver`) and make sure
+ *   you have downloaded the table (`python manage.py fetch_soda_violations`).
+ */
+export async function fetchSodaStats() {
+  const response = await fetch(`${API_BASE}/api/soda-violations/stats/`)
+  if (!response.ok) {
+    throw new Error(`Could not load dashboard stats (${response.status})`)
+  }
+  return response.json()
+}
+
+/**
  * POST /api/ask-ai/ — send a question; Django forwards it to the FastAPI AI service.
  */
 export async function askAi(question) {

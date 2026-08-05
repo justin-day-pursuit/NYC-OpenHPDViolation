@@ -1,19 +1,21 @@
 /**
- * Inventory-style Open HPD Violations browser + AI analysis panel.
+ * Inventory-style Open HPD Violations browser + overview charts + AI panel.
  *
  * Shows EVERY column returned by the SODA cache (even when blank).
  * Layout:
+ *  - overview charts from SQL (borough / class / status / monthly)
  *  - toolbar with search, filters, sort, and page size
  *  - horizontally scrollable item list with sortable column headers
  *  - AI prompt bar under the list (Enter = analyze with Gemini)
  *  - analysis narrative / tables / charts render under the prompt
  *
- * Tip: download the full SODA table first so AI summaries cover all rows:
+ * Tip: download the full SODA table first so charts and AI cover all rows:
  *   cd backend && python manage.py fetch_soda_violations
  */
 
 import { useEffect, useMemo, useState } from 'react'
 import AnalysisPanel from './AnalysisPanel'
+import StatsDashboard from './StatsDashboard'
 import {
   fetchSodaFilterOptions,
   fetchSodaStatus,
@@ -246,6 +248,9 @@ function App() {
           <span className="pill muted">{columns.length} columns</span>
         </div>
       </header>
+
+      {/* SQL overview charts (no AI) — full local cache */}
+      <StatsDashboard />
 
       {/* Toolbar: search / filter / sort / page size */}
       <section className="toolbar" aria-label="List controls">

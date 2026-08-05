@@ -12,6 +12,7 @@ from rest_framework.response import Response
 
 from . import data_store
 from .analysis_context import build_analysis_context
+from .analytics import build_dashboard_stats
 from .models import Violation
 from .serializers import ViolationSerializer
 from .socrata_client import discover_api_limits, get_record_count
@@ -81,6 +82,44 @@ def soda_filter_options(request):
     Distinct borough / class / status values for frontend dropdowns.
     """
     return Response(data_store.filter_options())
+
+
+@api_view(["GET"])
+def soda_stats(request):
+    """
+    Dashboard chart data from the FULL local SODA cache (no AI).
+
+    Returns counts ready for Recharts:
+      by_boro, by_class, by_currentstatus, by_month
+
+    Optional query parameters (advanced — defaults are fine for most users):
+      status_top_n  — how many status bars to keep (default 15)
+      months        — how many recent months on the trend line (default 36)
+
+    Non-technical tip:
+      Open this URL in a browser to peek at the numbers:
+        http://127.0.0.1:8000/api/soda-violations/stats/
+      If it says the cache is empty, run:
+        python manage.py fetch_soda_violations
+    """
+
+    def _as_int(value, default, *, minimum=1, maximum=120):
+        # Clamp so a typo in the URL cannot request millions of buckets
+        try:
+            n = int(value)
+        except (TypeError, ValueError):
+            return default
+        return max(minimum, min(n, maximum))
+
+    payload = build_dashboard_stats(
+        status_top_n=_as_int(
+            request.query_params.get("status_top_n"), 15, minimum=1, maximum=50
+        ),
+        month_count=_as_int(
+            request.query_params.get("months"), 36, minimum=1, maximum=120
+        ),
+    )
+    return Response(payload)
 
 
 @api_view(["GET"])
