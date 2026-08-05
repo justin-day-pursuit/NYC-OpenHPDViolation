@@ -97,9 +97,9 @@ This uses **sodapy** + **pandas**, matching Socrata’s documented Python approa
 3. On the frontend, scroll under the inventory list to **Ask AI to analyze the data**.
 4. Type a prompt and press **Enter**.
 
-Token-saving rule: each browser tab sends the dataset summary to Gemini **only once**. Follow-up prompts in that tab send just the new question. Open a new tab (or clear sessionStorage) to start a fresh AI session.
+Token-saving rule: each browser tab sends a dataset summary to Gemini on the first ask, and again if you change the inventory filters (Search / Borough / Class / Status). Follow-up prompts with the same filters only send the new question. Open a new tab (or clear sessionStorage) to start a fresh AI session.
 
-The one-time data pack includes richer SQL aggregates (monthly trend, class × borough, top buildings) so Gemini can answer comparison and trend questions from real counts instead of guessing. The local cache is **Open HPD Violations only** (`csn4-vhvf`, ~2.9M currently open rows) — not the full historical violations dataset.
+The data pack includes richer SQL aggregates (monthly trend, class × borough, top buildings) scoped to the current list filters. The local cache is **Open HPD Violations only** (`csn4-vhvf`, ~2.9M currently open rows) — not the full historical violations dataset.
 
 ### AI service (FastAPI + Gemini)
 

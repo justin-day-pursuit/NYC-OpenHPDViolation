@@ -3,12 +3,15 @@
  *
  * What it does:
  *  1) Shows a prompt bar (press Enter to run).
- *  2) On first use in this browser tab, tells Django to attach the dataset.
- *  3) Scrolls so the prompt bar sits at the top of the window.
- *  4) Renders Gemini's narrative, tables, and charts underneath.
+ *  2) Sends the current inventory filters with the ask.
+ *  3) On first use (or after filters change), attaches a filtered data pack.
+ *  4) Scrolls so the prompt bar sits at the top of the window.
+ *  5) Renders Gemini's narrative, tables, and charts underneath.
  *
  * Non-technical tip:
- *   If you see "Could not reach the AI analysis service", start the AI app:
+ *   Filter the list above (Borough / Class / etc.), then ask a question —
+ *   the AI will summarize that filtered slice. If you see
+ *   "Could not reach the AI analysis service", start the AI app:
  *     cd ai-service && source .venv/bin/activate
  *     uvicorn app.main:app --reload --port 8001
  */
@@ -145,20 +148,36 @@ function AnalysisTable({ table, index }) {
   )
 }
 
-export default function AnalysisPanel() {
+/**
+ * Short human-readable label for the active inventory filters.
+ */
+function describeFilters(filters = {}) {
+  const parts = []
+  if (filters.boro) parts.push(`Borough=${filters.boro}`)
+  if (filters.class) parts.push(`Class=${filters.class}`)
+  if (filters.status) parts.push(`Status≈${filters.status}`)
+  if (filters.search) parts.push(`Search="${filters.search}"`)
+  return parts.length ? parts.join(' · ') : 'No list filters (full open-violations cache)'
+}
+
+/**
+ * @param {{ filters?: { search?: string, boro?: string, class?: string, status?: string } }} props
+ */
+export default function AnalysisPanel({ filters = {} }) {
   const [prompt, setPrompt] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [result, setResult] = useState(null)
-  const [dataSent, setDataSent] = useState(hasSentAnalysisData())
+  const [dataSent, setDataSent] = useState(() => hasSentAnalysisData(filters))
 
   // This ref lets us scroll the prompt bar to the top of the page
   const panelRef = useRef(null)
   const inputRef = useRef(null)
 
+  // When the inventory toolbar filters change, the next ask needs a new pack
   useEffect(() => {
-    setDataSent(hasSentAnalysisData())
-  }, [])
+    setDataSent(hasSentAnalysisData(filters))
+  }, [filters.search, filters.boro, filters.class, filters.status])
 
   /**
    * Run when the user presses Enter in the prompt bar.
@@ -176,17 +195,19 @@ export default function AnalysisPanel() {
     panelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 
     const sessionId = getAnalysisSessionId()
-    const includeData = !hasSentAnalysisData()
+    // Fresh pack on first ask, or whenever list filters changed since last pack
+    const includeData = !hasSentAnalysisData(filters)
 
     try {
       const data = await analyzeWithAi({
         prompt: text,
         sessionId,
         includeData,
+        filters,
       })
       setResult(data)
       if (data.session_data_was_sent || data.data_included || includeData) {
-        markAnalysisDataSent()
+        markAnalysisDataSent(filters)
         setDataSent(true)
       }
     } catch (err) {
@@ -198,18 +219,27 @@ export default function AnalysisPanel() {
     }
   }
 
+  const filterLabel = describeFilters(filters)
+  const filtersActive = Boolean(
+    filters.boro || filters.class || filters.status || filters.search,
+  )
+
   return (
     <section className="analysis-panel" ref={panelRef} aria-label="AI data analysis">
       <div className="analysis-heading">
         <div>
           <h2>Ask AI to analyze the data</h2>
           <p className="lede-sm">
-            Press Enter to send your prompt. The full local dataset summary is attached
-            once per browser tab; follow-ups only send the new question.
+            Press Enter to send your prompt. Uses the same filters as the inventory
+            list above. A filtered dataset summary is attached on the first ask
+            (and again after you change filters); follow-ups only send the new question.
           </p>
+          <p className="meta-line">Analysis scope: {filterLabel}</p>
         </div>
-        <span className={`pill ${dataSent ? 'ok' : 'muted'}`}>
-          {dataSent ? 'Dataset already attached this session' : 'Next request will attach dataset'}
+        <span className={`pill ${dataSent ? 'ok' : filtersActive ? 'warn' : 'muted'}`}>
+          {dataSent
+            ? 'Dataset attached for current filters'
+            : 'Next request will attach dataset for current filters'}
         </span>
       </div>
 

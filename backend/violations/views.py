@@ -216,27 +216,46 @@ def ask_ai(request):
 @api_view(["POST"])
 def analyze_data(request):
     """
-    Analyze the local FULL SODA cache with Gemini (via the AI service).
+    Analyze the local Open HPD Violations cache with Gemini (via the AI service).
 
     Body JSON:
       {
         "prompt": "Compare Class C violations by borough",
         "session_id": "optional-stable-id-from-browser",
-        "include_data": true   // only needed / used on the FIRST call
+        "include_data": true,   // first call, or when inventory filters change
+        "filters": {            // same controls as the inventory toolbar
+          "search": "",
+          "boro": "BRONX",
+          "class": "C",
+          "status": ""
+        }
       }
 
     Token-saving rule:
-      For each session_id, the dataset summary is attached ONLY once.
-      Later prompts in that session send just the new question.
+      For each session_id, the dataset summary is attached when include_data
+      is true (first ask, or after the user changes list filters). Later
+      prompts with the same filters only send the new question.
 
     Non-technical tip:
-      1) Download the whole table: python manage.py fetch_soda_violations
+      1) Download the open table: python manage.py fetch_soda_violations
       2) Start AI service on port 8001
-      3) Type a question in the prompt bar under the inventory list
+      3) Optionally filter the inventory list, then ask in the prompt bar
     """
-    prompt = (request.data or {}).get("prompt", "").strip()
-    session_id = (request.data or {}).get("session_id", "").strip()
-    include_data_flag = bool((request.data or {}).get("include_data", False))
+    body_in = request.data or {}
+    prompt = (body_in.get("prompt") or "").strip()
+    session_id = (body_in.get("session_id") or "").strip()
+    include_data_flag = bool(body_in.get("include_data", False))
+
+    # Inventory filters (optional) — empty strings mean "no filter"
+    raw_filters = body_in.get("filters") or {}
+    if not isinstance(raw_filters, dict):
+        raw_filters = {}
+    search = str(raw_filters.get("search") or "").strip()
+    boro = str(raw_filters.get("boro") or "").strip()
+    violation_class = str(
+        raw_filters.get("class") or raw_filters.get("violation_class") or ""
+    ).strip()
+    status_filter = str(raw_filters.get("status") or "").strip()
 
     if not prompt:
         return Response(
@@ -247,9 +266,8 @@ def analyze_data(request):
         # Fallback id so older clients still work
         session_id = "default-session"
 
-    # Decide whether this session still needs its one-time data pack
+    # Has this session already stored a pack on the AI service?
     already_sent = session_id in _AI_SESSIONS_WITH_DATA
-    # Also ask the AI service — it is the source of truth after Django restarts
     if not already_sent:
         try:
             check = requests.get(
@@ -262,16 +280,20 @@ def analyze_data(request):
         except requests.RequestException:
             pass
 
-    # Token rule: attach the dataset summary only the first time for this session.
-    # Later prompts reuse the AI service's stored session context.
-    _ = include_data_flag  # browser hint kept for compatibility / logging
-    should_include_data = not already_sent
+    # Send a fresh pack when the browser asks (first time OR filters changed).
+    # Otherwise reuse the AI service's stored context for this session.
+    should_include_data = include_data_flag or not already_sent
 
     data_context = None
     if should_include_data:
         try:
-            # Summarize the WHOLE local table (not just the current UI page)
-            data_context = build_analysis_context()
+            # Summarize the filtered open-violations slice (or full cache)
+            data_context = build_analysis_context(
+                search=search,
+                boro=boro,
+                violation_class=violation_class,
+                status=status_filter,
+            )
         except RuntimeError as exc:
             return Response(
                 {
@@ -308,4 +330,7 @@ def analyze_data(request):
     # Helpful flags for the frontend status line
     body["session_data_was_sent"] = bool(body.get("data_included"))
     body["local_cached_rows"] = data_store.cached_row_count()
+    if data_context is not None:
+        body["analysis_row_count"] = data_context.get("row_count")
+        body["analysis_filters"] = data_context.get("filters")
     return Response(body)

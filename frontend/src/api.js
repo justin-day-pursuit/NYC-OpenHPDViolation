@@ -98,12 +98,19 @@ export async function askAi(question) {
 /**
  * POST /api/analyze/ — session-aware Gemini analysis with charts/tables.
  *
- * includeData should be true ONLY the first time in a browser tab session.
- * Django builds a summary of the FULL local SODA cache and sends it once.
+ * includeData should be true on the first ask in a tab, and again whenever
+ * inventory filters change (so Gemini gets a fresh filtered summary).
  *
- * @param {{ prompt: string, sessionId: string, includeData: boolean }} args
+ * filters should match the inventory toolbar: { search, boro, class, status }.
+ *
+ * @param {{
+ *   prompt: string,
+ *   sessionId: string,
+ *   includeData: boolean,
+ *   filters?: { search?: string, boro?: string, class?: string, status?: string },
+ * }} args
  */
-export async function analyzeWithAi({ prompt, sessionId, includeData }) {
+export async function analyzeWithAi({ prompt, sessionId, includeData, filters = {} }) {
   const response = await fetch(`${API_BASE}/api/analyze/`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -111,6 +118,12 @@ export async function analyzeWithAi({ prompt, sessionId, includeData }) {
       prompt,
       session_id: sessionId,
       include_data: includeData,
+      filters: {
+        search: filters.search || '',
+        boro: filters.boro || '',
+        class: filters.class || '',
+        status: filters.status || '',
+      },
     }),
   })
   const data = await response.json().catch(() => ({}))

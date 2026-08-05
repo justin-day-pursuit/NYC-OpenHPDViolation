@@ -110,16 +110,26 @@ def refresh_from_socrata(progress_callback=None, max_rows=None) -> dict[str, Any
     )
 
 
-def _build_where(
+def build_filter_clause(
     *,
-    search: str,
-    boro: str,
-    violation_class: str,
-    status: str,
+    search: str = "",
+    boro: str = "",
+    violation_class: str = "",
+    status: str = "",
 ) -> tuple[str, list[Any]]:
     """
-    Build a SQL WHERE clause + bound parameters from filter inputs.
-    Using ? placeholders avoids SQL injection from user text.
+    Build a SQL WHERE clause + bound parameters from inventory filters.
+
+    Used by the list API and by AI/dashboard summaries so both see the same
+    filtered slice of the open-violations cache.
+
+    Returns:
+      ("", [])                         — no filters (whole open table)
+      ("WHERE boro = ? AND ...", [...]) — filtered
+
+    Non-technical tip:
+      These are the same controls as the frontend toolbar (Search / Borough /
+      Class / Status). Using ? placeholders keeps user text from breaking SQL.
     """
     clauses: list[str] = []
     params: list[Any] = []
@@ -150,6 +160,22 @@ def _build_where(
     if not clauses:
         return "", params
     return "WHERE " + " AND ".join(clauses), params
+
+
+def _build_where(
+    *,
+    search: str,
+    boro: str,
+    violation_class: str,
+    status: str,
+) -> tuple[str, list[Any]]:
+    """Internal alias — list queries call the shared filter builder above."""
+    return build_filter_clause(
+        search=search,
+        boro=boro,
+        violation_class=violation_class,
+        status=status,
+    )
 
 
 def query_violations(

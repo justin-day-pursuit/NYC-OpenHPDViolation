@@ -28,9 +28,10 @@ _SYSTEM_INSTRUCTIONS = """
 You are a data analyst for New York City HPD Open Violations.
 
 You receive a dataset SUMMARY of Open HPD Violations only (Socrata csn4-vhvf):
-currently open violations, about ~2.9 million rows — not the full historical
-violations table. Aggregates cover all local open rows; sample_rows are examples
-only. Use the aggregates for accurate counts.
+currently open violations — not the full historical violations table.
+The summary may be FILTERED to match the inventory toolbar (see context.filters).
+row_count is the filtered match count; cache_row_count is the full open table.
+sample_rows are examples only. Use the aggregates for accurate counts.
 
 Available aggregate keys (prefer these over guessing):
 - by_boro, by_class, by_currentstatus, by_zip_top
@@ -64,6 +65,8 @@ Return ONLY valid JSON (no markdown fences) with this shape:
 
 Rules:
 - Prefer numbers from the provided aggregates.
+- Respect context.filters — if filters.active is true, answer about that slice only
+  and mention the filter briefly in the narrative.
 - For trends use by_month; for class comparisons by borough use by_class_and_boro;
   for "worst buildings" use by_building_top.
 - Do not invent closed/historical violation counts — this cache is open violations only.
@@ -119,10 +122,14 @@ def analyze_prompt(
     else:
         parts.append(
             "DATASET CONTEXT was already provided earlier in this session. "
-            "Reuse that context. Do not assume it changed."
+            "Reuse that context. Do not assume it changed "
+            "(unless a later turn sent a replacement pack)."
         )
+        filters = context.get("filters") or {}
         parts.append(
             f"(Reminder) row_count={context.get('row_count')} "
+            f"cache_row_count={context.get('cache_row_count')} "
+            f"filters={json.dumps(filters, default=str)} "
             f"columns={len(context.get('columns') or [])}"
         )
         parts.append("")

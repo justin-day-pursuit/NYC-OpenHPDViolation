@@ -438,8 +438,15 @@ function App() {
         </div>
       </section>
 
-      {/* AI analysis lives under the inventory list */}
-      <AnalysisPanel />
+      {/* AI analysis uses the same filters as the inventory toolbar above */}
+      <AnalysisPanel
+        filters={{
+          search,
+          boro,
+          class: violationClass,
+          status,
+        }}
+      />
     </div>
   )
 }
