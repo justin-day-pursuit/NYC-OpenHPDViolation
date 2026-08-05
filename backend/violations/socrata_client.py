@@ -1,9 +1,12 @@
 """
 Talk to NYC Open Data (Socrata / SODA) using sodapy + pandas.
 
-Dataset used by this project:
+Dataset used by this project (OPEN violations only):
   https://data.cityofnewyork.us/api/v3/views/csn4-vhvf/query.json
-  Dataset id: csn4-vhvf
+  Dataset id: csn4-vhvf  (~2.9 million currently open rows)
+
+  Do NOT switch this to the full historical Housing Maintenance Code
+  Violations dataset unless the project owner explicitly asks for that.
 
 Download flow (required order):
   1) Ask the API about rate / page limits (probe request + headers).

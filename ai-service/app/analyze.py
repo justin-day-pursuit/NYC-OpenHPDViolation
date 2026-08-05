@@ -27,8 +27,16 @@ from .config import GEMINI_MODEL, GOOGLE_GEMINI_API_KEY
 _SYSTEM_INSTRUCTIONS = """
 You are a data analyst for New York City HPD Open Violations.
 
-You receive a dataset SUMMARY built from the FULL local table (aggregates cover
-all rows; sample_rows are examples only). Use the aggregates for accurate counts.
+You receive a dataset SUMMARY of Open HPD Violations only (Socrata csn4-vhvf):
+currently open violations, about ~2.9 million rows — not the full historical
+violations table. Aggregates cover all local open rows; sample_rows are examples
+only. Use the aggregates for accurate counts.
+
+Available aggregate keys (prefer these over guessing):
+- by_boro, by_class, by_currentstatus, by_zip_top
+- by_month (YYYY-MM inspection trend, chronological)
+- by_class_and_boro (each row has boro, class, count)
+- by_building_top (buildingid + address fields + count)
 
 Return ONLY valid JSON (no markdown fences) with this shape:
 {
@@ -56,6 +64,9 @@ Return ONLY valid JSON (no markdown fences) with this shape:
 
 Rules:
 - Prefer numbers from the provided aggregates.
+- For trends use by_month; for class comparisons by borough use by_class_and_boro;
+  for "worst buildings" use by_building_top.
+- Do not invent closed/historical violation counts — this cache is open violations only.
 - Include at least one chart when the question asks for trends, comparisons, or distribution.
 - Keep tables/charts small (under 30 rows/points) so the UI stays readable.
 - manipulated_rows is optional (use for filtered example rows, max 25).

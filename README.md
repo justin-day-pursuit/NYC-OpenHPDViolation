@@ -99,6 +99,8 @@ This uses **sodapy** + **pandas**, matching Socrata’s documented Python approa
 
 Token-saving rule: each browser tab sends the dataset summary to Gemini **only once**. Follow-up prompts in that tab send just the new question. Open a new tab (or clear sessionStorage) to start a fresh AI session.
 
+The one-time data pack includes richer SQL aggregates (monthly trend, class × borough, top buildings) so Gemini can answer comparison and trend questions from real counts instead of guessing. The local cache is **Open HPD Violations only** (`csn4-vhvf`, ~2.9M currently open rows) — not the full historical violations dataset.
+
 ### AI service (FastAPI + Gemini)
 
 In a second terminal:
