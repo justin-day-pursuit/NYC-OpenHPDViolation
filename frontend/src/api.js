@@ -21,7 +21,7 @@ export async function fetchHealth() {
 }
 
 /**
- * GET /api/soda-violations/ — filtered / sorted / paged SODA cache rows.
+ * GET /api/soda-violations/ — filtered / sorted / paged LIVE SODA rows.
  *
  * @param {object} params filter + sort + page options
  */
@@ -51,7 +51,7 @@ export async function fetchSodaFilterOptions() {
 }
 
 /**
- * GET /api/soda-violations/status/ — is the local cache ready?
+ * GET /api/soda-violations/status/ — is the live SODA API reachable?
  */
 export async function fetchSodaStatus() {
   const response = await fetch(`${API_BASE}/api/soda-violations/status/`)
@@ -62,14 +62,14 @@ export async function fetchSodaStatus() {
 }
 
 /**
- * GET /api/soda-violations/stats/ — dashboard chart counts (no AI).
+ * GET /api/soda-violations/stats/ — live dashboard chart counts (no AI).
  *
  * Returns by_boro / by_class / by_currentstatus / by_month as
  * [{ name, value }, ...] ready for Recharts.
  *
  * Non-technical tip:
- *   If this fails, start Django (`python manage.py runserver`) and make sure
- *   you have downloaded the table (`python manage.py fetch_soda_violations`).
+ *   If this fails, start Django and set SOCRATA_APP_TOKEN in the root .env.
+ *   First load can take 1–3 minutes (remote aggregates).
  */
 export async function fetchSodaStats() {
   const response = await fetch(`${API_BASE}/api/soda-violations/stats/`)

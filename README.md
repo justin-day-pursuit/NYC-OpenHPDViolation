@@ -57,49 +57,29 @@ python manage.py migrate
 python manage.py runserver         # http://127.0.0.1:8000
 ```
 
-Useful endpoints:
+Useful endpoints (all Open HPD Violations traffic is **live SODA** — no local data file):
 
 - `GET /api/health/`
 - `GET/POST /api/violations/`
-- `GET /api/soda-violations/` (filterable / sortable SODA cache)
+- `GET /api/soda-violations/` (live filterable / sortable / paged rows)
 - `GET /api/soda-violations/filters/`
-- `GET /api/soda-violations/stats/` (dashboard chart counts: borough / class / status / monthly)
-- `GET /api/soda-violations/status/`
-- `POST /api/soda-violations/refresh/`
+- `GET /api/soda-violations/stats/` (live dashboard chart counts; can take 1–3 min)
+- `GET /api/soda-violations/status/` (live API reachability + row count)
 - `POST /api/ask-ai/` (forwards to the AI service)
 - `POST /api/analyze/` (session-aware Gemini analysis + charts/tables)
 
-### One-time: download the full SODA table
-
-The Open HPD Violations dataset (`csn4-vhvf`) has millions of rows. SODA defaults to 1000 rows per request, so the backend always downloads in this order:
-
-1. Ask the API for rate / page limits (probe request + max `$limit`)
-2. Ask for the entry count (`COUNT(*)`)
-3. Page with `limit` + `offset` until every row is downloaded
-4. Store the full table in `backend/data/soda_violations.sqlite3` (gitignored)
-
-```bash
-cd backend
-source .venv/bin/activate
-# Full table (~2.9 million rows — can take a while):
-python manage.py fetch_soda_violations
-
-# Or a quicker sample while testing:
-python manage.py fetch_soda_violations --max-rows 5000
-```
-
-This uses **sodapy** + **pandas**, matching Socrata’s documented Python approach. Add `SOCRATA_APP_TOKEN` first for higher rate limits.
+Set `SOCRATA_APP_TOKEN` in `.env` before using list/charts/AI. The inventory list pages the SODA API with `$limit` / `$offset`; overview charts use live SoQL `GROUP BY`. Use the dashboard **Refresh** button to re-query NYC Open Data.
 
 ### AI data analysis (Gemini)
 
-1. Make sure the **full** local SODA cache exists (`fetch_soda_violations` without `--max-rows`).
+1. Set `SOCRATA_APP_TOKEN` in the root `.env`.
 2. Start the AI service on port 8001.
 3. On the frontend, scroll under the inventory list to **Ask AI to analyze the data**.
 4. Type a prompt and press **Enter**.
 
 Token-saving rule: each browser tab sends a dataset summary to Gemini on the first ask, and again if you change the inventory filters (Search / Borough / Class / Status). Follow-up prompts with the same filters only send the new question. Open a new tab (or clear sessionStorage) to start a fresh AI session.
 
-The data pack includes richer SQL aggregates (monthly trend, class × borough, top buildings) scoped to the current list filters. The local cache is **Open HPD Violations only** (`csn4-vhvf`, ~2.9M currently open rows) — not the full historical violations dataset.
+The data pack is built from **live** SODA aggregates (monthly trend, class × borough, top buildings) scoped to the current list filters. Source is **Open HPD Violations only** (`csn4-vhvf`) — not the full historical violations dataset. First ask can take several minutes.
 
 ### AI service (FastAPI + Gemini)
 
@@ -166,11 +146,11 @@ GitHub Actions runs the same script on push/PR (`.github/workflows/build-checks.
 
 ---
 
-## 4) Live analysis notebooks (fresh SODA source — not local SQLite)
+## 4) Live analysis notebooks (same SODA source as the app)
 
-For offline / exploratory analysis that should match **current** NYC Open Data
-(not a possibly stale `backend/data/soda_violations.sqlite3` download), use the
-helpers under `notebooks/`. They call the Socrata SODA API directly (`csn4-vhvf`).
+For offline / exploratory pandas analysis against **current** NYC Open Data,
+use the helpers under `notebooks/`. They call the Socrata SODA API directly
+(`csn4-vhvf`), same live source the Django app uses.
 
 ```bash
 cd notebooks
@@ -200,15 +180,14 @@ Needs `SOCRATA_APP_TOKEN` in the root `.env`. First COUNT/GROUP BY calls can tak
 ├── .gitignore                # Keeps .env, venvs, node_modules out of git
 ├── README.md
 ├── scripts/test-builds.sh    # Local/CI build checks
-├── notebooks/                # Live SODA pandas analysis (not local SQLite)
+├── notebooks/                # Live SODA pandas analysis (same source as the app)
 │   ├── soda_live.py          # API helpers (sodapy)
 │   ├── open_hpd_live_analysis.ipynb
 │   └── run_live_analysis.py  # Same analysis without Jupyter
-├── backend/                  # Django + DRF
+├── backend/                  # Django + DRF (live SODA queries, no data cache file)
 │   ├── manage.py
-│   ├── data/                 # Local SODA SQLite cache (gitignored)
 │   ├── config/               # Project settings + root URLs
-│   └── violations/           # Violation models, SODA client, API, dashboard stats
+│   └── violations/           # SODA client, list/stats/AI context APIs
 ├── ai-service/               # FastAPI + Gemini
 │   └── app/
 │       ├── main.py           # HTTP routes
@@ -231,8 +210,8 @@ Needs `SOCRATA_APP_TOKEN` in the root `.env`. First COUNT/GROUP BY calls can tak
 | Frontend says Django is not reachable | Start Django on port 8000 |
 | Ask AI returns 502 / cannot reach AI service | Start FastAPI on port 8001 |
 | Gemini error about missing API key | Put `GOOGLE_GEMINI_API_KEY` in the root `.env`, then restart FastAPI |
-| Frontend says SODA cache is empty | Run `python manage.py fetch_soda_violations` and set `SOCRATA_APP_TOKEN` |
-| SODA download is very slow / throttled | Add a valid `SOCRATA_APP_TOKEN` in `.env`, then re-run the fetch command |
+| Charts / list fail or time out | Set `SOCRATA_APP_TOKEN` in `.env`, restart Django, wait and click Refresh |
+| Overview charts take a long time | Expected on first load (live GROUP BY on ~3M rows); use Refresh later |
 | CORS errors in the browser | Confirm `CORS_ALLOWED_ORIGINS` in `.env` includes your frontend URL |
 
 ---

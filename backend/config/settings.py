@@ -166,12 +166,7 @@ SOCRATA_APP_TOKEN = os.getenv("SOCRATA_APP_TOKEN", "")
 # Optional login (needed only to create/update/delete remote rows)
 SOCRATA_USERNAME = os.getenv("SOCRATA_USERNAME", "")
 SOCRATA_PASSWORD = os.getenv("SOCRATA_PASSWORD", "")
-# Large downloads can be slow — give each request enough time
+# Live SODA GROUP BY / COUNT can be slow on ~3M rows — give requests time
 SOCRATA_TIMEOUT = int(os.getenv("SOCRATA_TIMEOUT", "300"))
-# Rows per page when paging past the default 1000-row SODA limit
+# Max page size the portal typically allows (used for limit probes / docs)
 SOCRATA_PAGE_SIZE = int(os.getenv("SOCRATA_PAGE_SIZE", "50000"))
-
-# Where we store the downloaded full table locally (SQLite file)
-SOCRATA_DATA_DIR = BASE_DIR / "data"
-SOCRATA_SQLITE_PATH = SOCRATA_DATA_DIR / "soda_violations.sqlite3"
-SOCRATA_TABLE_NAME = "soda_violations"

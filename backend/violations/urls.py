@@ -10,7 +10,6 @@ from .views import (
     analyze_data,
     ask_ai,
     soda_filter_options,
-    soda_refresh,
     soda_stats,
     soda_status,
     soda_violations,
@@ -28,10 +27,9 @@ urlpatterns = [
     # SODA / NYC Open Data cache endpoints
     path("soda-violations/", soda_violations, name="soda-violations"),
     path("soda-violations/filters/", soda_filter_options, name="soda-filters"),
-    # Chart numbers for the dashboard (borough / class / status / monthly)
+    # Chart numbers for the dashboard (live SODA aggregates)
     path("soda-violations/stats/", soda_stats, name="soda-stats"),
     path("soda-violations/status/", soda_status, name="soda-status"),
-    path("soda-violations/refresh/", soda_refresh, name="soda-refresh"),
     # Router routes: /api/violations/, /api/violations/<id>/, etc.
     path("", include(router.urls)),
 ]

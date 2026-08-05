@@ -15,7 +15,7 @@ from .analysis_context import build_analysis_context
 from .analytics import build_dashboard_stats
 from .models import Violation
 from .serializers import ViolationSerializer
-from .socrata_client import discover_api_limits, get_record_count
+from .socrata_client import discover_api_limits
 
 # session_ids that already sent their one-time data pack to the AI service
 # (process-local; resets when Django restarts — that is OK for local/dev)
@@ -42,7 +42,7 @@ class ViolationViewSet(viewsets.ModelViewSet):
 @api_view(["GET"])
 def soda_violations(request):
     """
-    Read the local SODA cache with filters + sorting + pagination.
+    Live inventory page from the NYC Open Data SODA API (no local cache).
 
     Query parameters (all optional):
       search   — free-text match on street, house #, description, id, zip, apt
@@ -52,7 +52,7 @@ def soda_violations(request):
       sort     — column name (default: inspectiondate)
       order    — asc or desc (default: desc)
       page     — page number starting at 1
-      page_size — rows per page (max 200)
+      page_size — rows per page (max 500)
 
     Example:
       /api/soda-violations/?boro=BRONX&class=C&sort=inspectiondate&order=desc
@@ -87,7 +87,7 @@ def soda_filter_options(request):
 @api_view(["GET"])
 def soda_stats(request):
     """
-    Dashboard chart data from the FULL local SODA cache (no AI).
+    Dashboard chart data from the LIVE SODA API (no AI, no local cache).
 
     Returns counts ready for Recharts:
       by_boro, by_class, by_currentstatus, by_month
@@ -99,8 +99,8 @@ def soda_stats(request):
     Non-technical tip:
       Open this URL in a browser to peek at the numbers:
         http://127.0.0.1:8000/api/soda-violations/stats/
-      If it says the cache is empty, run:
-        python manage.py fetch_soda_violations
+      The first load can take 1–3 minutes (remote group-by on ~3M rows).
+      Use the dashboard Refresh button to pull again.
     """
 
     def _as_int(value, default, *, minimum=1, maximum=120):
@@ -125,56 +125,18 @@ def soda_stats(request):
 @api_view(["GET"])
 def soda_status(request):
     """
-    Show whether the local cache is ready.
+    Live SODA API status for the topbar (row count + token present).
 
     Optional query flags:
-      ?remote=1  — also COUNT(*) on Socrata (slower)
       ?limits=1  — also probe rate / page limits on Socrata (slower)
     """
-    payload = {
-        "cache_ready": data_store.cache_exists(),
-        "cached_rows": data_store.cached_row_count(),
-        "dataset_id": settings.SOCRATA_DATASET_ID,
-        "domain": settings.SOCRATA_DOMAIN,
-        "has_app_token": bool(settings.SOCRATA_APP_TOKEN),
-    }
+    payload = data_store.remote_status()
     if request.query_params.get("limits") in ("1", "true", "yes"):
         try:
             payload["limits"] = discover_api_limits()
         except Exception as exc:  # pragma: no cover - network failures
             payload["limits_error"] = str(exc)
-    if request.query_params.get("remote") in ("1", "true", "yes"):
-        try:
-            payload["remote_rows"] = get_record_count()
-        except Exception as exc:  # pragma: no cover - network failures
-            payload["remote_error"] = str(exc)
     return Response(payload)
-
-
-@api_view(["POST"])
-def soda_refresh(request):
-    """
-    Re-download the full SODA table into the local SQLite cache.
-
-    This can take a long time (~3 million rows). Prefer the management command
-    for the first load:
-      python manage.py fetch_soda_violations
-    """
-    try:
-        summary = data_store.refresh_from_socrata()
-    except Exception as exc:
-        return Response(
-            {
-                "error": "SODA refresh failed.",
-                "detail": str(exc),
-                "hint": (
-                    "Check SOCRATA_APP_TOKEN in .env and that the dataset id "
-                    "csn4-vhvf is reachable."
-                ),
-            },
-            status=status.HTTP_502_BAD_GATEWAY,
-        )
-    return Response({"status": "ok", **summary})
 
 
 @api_view(["POST"])
@@ -216,7 +178,7 @@ def ask_ai(request):
 @api_view(["POST"])
 def analyze_data(request):
     """
-    Analyze the local Open HPD Violations cache with Gemini (via the AI service).
+    Analyze LIVE Open HPD Violations (SODA API) with Gemini via the AI service.
 
     Body JSON:
       {
@@ -237,9 +199,10 @@ def analyze_data(request):
       prompts with the same filters only send the new question.
 
     Non-technical tip:
-      1) Download the open table: python manage.py fetch_soda_violations
+      1) Set SOCRATA_APP_TOKEN in the root .env
       2) Start AI service on port 8001
       3) Optionally filter the inventory list, then ask in the prompt bar
+         (first ask can take several minutes — live remote aggregates)
     """
     body_in = request.data or {}
     prompt = (body_in.get("prompt") or "").strip()
@@ -287,7 +250,7 @@ def analyze_data(request):
     data_context = None
     if should_include_data:
         try:
-            # Summarize the filtered open-violations slice (or full cache)
+            # Summarize the filtered open-violations slice from the LIVE API
             data_context = build_analysis_context(
                 search=search,
                 boro=boro,
@@ -298,7 +261,10 @@ def analyze_data(request):
             return Response(
                 {
                     "error": str(exc),
-                    "hint": "Run: python manage.py fetch_soda_violations",
+                    "hint": (
+                        "Check SOCRATA_APP_TOKEN in .env and that "
+                        "data.cityofnewyork.us is reachable."
+                    ),
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
@@ -329,8 +295,8 @@ def analyze_data(request):
 
     # Helpful flags for the frontend status line
     body["session_data_was_sent"] = bool(body.get("data_included"))
-    body["local_cached_rows"] = data_store.cached_row_count()
     if data_context is not None:
         body["analysis_row_count"] = data_context.get("row_count")
         body["analysis_filters"] = data_context.get("filters")
+        body["live_table_rows"] = data_context.get("cache_row_count")
     return Response(body)

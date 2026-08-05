@@ -354,6 +354,14 @@ body {
   font-size: 1.2rem;
 }
 
+/* Status pill + Refresh button on the overview charts header */
+.stats-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
 /* 2×2 on wide screens; stacks on phones */
 .stats-grid {
   display: grid;

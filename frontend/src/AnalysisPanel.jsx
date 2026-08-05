@@ -157,7 +157,7 @@ function describeFilters(filters = {}) {
   if (filters.class) parts.push(`Class=${filters.class}`)
   if (filters.status) parts.push(`Status≈${filters.status}`)
   if (filters.search) parts.push(`Search="${filters.search}"`)
-  return parts.length ? parts.join(' · ') : 'No list filters (full open-violations cache)'
+  return parts.length ? parts.join(' · ') : 'No list filters (full live open-violations table)'
 }
 
 /**
@@ -231,8 +231,9 @@ export default function AnalysisPanel({ filters = {} }) {
           <h2>Ask AI to analyze the data</h2>
           <p className="lede-sm">
             Press Enter to send your prompt. Uses the same filters as the inventory
-            list above. A filtered dataset summary is attached on the first ask
-            (and again after you change filters); follow-ups only send the new question.
+            list above. A live filtered summary from NYC Open Data is attached on
+            the first ask (and again after you change filters); follow-ups only
+            send the new question. First ask can take several minutes.
           </p>
           <p className="meta-line">Analysis scope: {filterLabel}</p>
         </div>

@@ -9,8 +9,8 @@
  *  - AI prompt bar under the list (Enter = analyze with Gemini)
  *  - analysis narrative / tables / charts render under the prompt
  *
- * Tip: download the full SODA table first so charts and AI cover all rows:
- *   cd backend && python manage.py fetch_soda_violations
+ * Tip: set SOCRATA_APP_TOKEN in the root .env so live SODA requests work.
+ * Charts and the inventory list query NYC Open Data on demand (no local cache).
  */
 
 import { useEffect, useMemo, useState } from 'react'
@@ -237,19 +237,21 @@ function App() {
           <h1>Violation inventory</h1>
         </div>
         <div className="topbar-meta">
-          {cacheStatus?.cache_ready ? (
+          {cacheStatus?.api_ready ? (
             <span className="pill ok">
-              {cacheStatus.cached_rows?.toLocaleString()} rows cached
+              {(cacheStatus.remote_rows ?? 0).toLocaleString()} live rows
             </span>
           ) : (
-            <span className="pill warn">Cache empty — run fetch_soda_violations</span>
+            <span className="pill warn">
+              {cacheStatus?.error ? 'SODA API unreachable' : 'Checking SODA API…'}
+            </span>
           )}
-          <span className="pill muted">dataset {cacheStatus?.dataset_id || 'csn4-vhvf'}</span>
+          <span className="pill muted">live SODA · {cacheStatus?.dataset_id || 'csn4-vhvf'}</span>
           <span className="pill muted">{columns.length} columns</span>
         </div>
       </header>
 
-      {/* SQL overview charts (no AI) — full local cache */}
+      {/* Live SODA overview charts (no AI) + Refresh */}
       <StatsDashboard />
 
       {/* Toolbar: search / filter / sort / page size */}

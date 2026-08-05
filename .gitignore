@@ -53,7 +53,7 @@ local_settings.py
 staticfiles/
 media/
 
-# --- Local SODA data cache (can be millions of rows — do not commit) ---------
+# --- Large data exports (if you save any locally — do not commit) ------------
 backend/data/
 *.parquet
 *.feather

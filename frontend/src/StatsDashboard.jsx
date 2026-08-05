@@ -1,5 +1,5 @@
 /**
- * Overview charts built from SQL counts (no AI).
+ * Overview charts from the LIVE NYC Open Data SODA API (no local cache).
  *
  * What this shows:
  *  - Violations by borough (bar)
@@ -8,18 +8,15 @@
  *  - Monthly inspection trend (line)
  *
  * Where the numbers come from:
- *   Django endpoint GET /api/soda-violations/stats/
- *   which reads the local SQLite cache (backend/data/soda_violations.sqlite3).
+ *   Django GET /api/soda-violations/stats/ → live Socrata group-bys
  *
  * Non-technical tip:
- *   If charts say the cache is empty, open a terminal and run:
- *     cd backend
- *     source .venv/bin/activate
- *     python manage.py fetch_soda_violations
- *   Then refresh this page. You do not need the AI service for these charts.
+ *   On first load, charts can take 1–3 minutes (remote aggregate on ~3M rows).
+ *   Click Refresh to pull fresh numbers. You need SOCRATA_APP_TOKEN in .env
+ *   and Django running — you do NOT need the AI service for these charts.
  */
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
   Bar,
   BarChart,
@@ -49,7 +46,6 @@ function BarStatChart({ title, data, layout = 'horizontal' }) {
     )
   }
 
-  // Vertical bars for short category lists; horizontal for long status labels
   const isVertical = layout === 'vertical'
 
   return (
@@ -148,7 +144,28 @@ export default function StatsDashboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  // Load once when the page opens (full-cache overview — not tied to list filters)
+  /**
+   * Pull fresh chart counts from the live SODA API (via Django).
+   * Used on page load and when the user clicks Refresh.
+   */
+  const loadStats = useCallback(() => {
+    setLoading(true)
+    setError('')
+
+    return fetchSodaStats()
+      .then((data) => {
+        setStats(data)
+        setLoading(false)
+        return data
+      })
+      .catch((err) => {
+        setError(err.message || 'Could not load dashboard stats.')
+        setLoading(false)
+        throw err
+      })
+  }, [])
+
+  // Page load — ask the backend for live aggregates
   useEffect(() => {
     let cancelled = false
     setLoading(true)
@@ -173,31 +190,42 @@ export default function StatsDashboard() {
     }
   }, [])
 
+  const ready = Boolean(stats?.api_ready)
+  const rowLabel = (stats?.row_count || 0).toLocaleString()
+
   return (
     <section className="stats-dashboard" aria-label="Violation overview charts">
       <div className="analysis-heading">
         <div>
           <h2>Overview charts</h2>
           <p className="lede-sm">
-            Counts from the full local table (SQL). These update when you
-            re-download the SODA cache — they do not need the AI service.
+            Live counts from NYC Open Data (SODA API). First load can take a
+            few minutes; click Refresh anytime for the newest numbers.
           </p>
         </div>
-        {stats?.cache_ready ? (
-          <span className="pill ok">
-            {(stats.row_count || 0).toLocaleString()} rows in charts
-          </span>
-        ) : (
-          <span className="pill warn">Cache empty</span>
-        )}
+        <div className="stats-actions">
+          {ready ? (
+            <span className="pill ok">{rowLabel} live rows</span>
+          ) : (
+            <span className="pill warn">{loading ? 'Loading live data…' : 'API unavailable'}</span>
+          )}
+          <button
+            type="button"
+            className="ghost-btn"
+            onClick={() => loadStats().catch(() => {})}
+            disabled={loading}
+            title="Re-query NYC Open Data for fresh chart counts"
+          >
+            {loading ? 'Refreshing…' : 'Refresh'}
+          </button>
+        </div>
       </div>
 
-      {loading && <p className="muted">Loading chart counts…</p>}
+      {loading && <p className="muted">Loading live chart counts from NYC Open Data…</p>}
       {error && <p className="error-text">{error}</p>}
       {stats?.message && <p className="error-text">{stats.message}</p>}
 
-      {/* Only draw charts once we have a ready cache */}
-      {!loading && stats?.cache_ready && (
+      {!loading && ready && (
         <div className="stats-grid">
           <BarStatChart title="By borough" data={stats.by_boro} />
           <BarStatChart title="By class" data={stats.by_class} />
@@ -213,7 +241,7 @@ export default function StatsDashboard() {
         </div>
       )}
 
-      {stats?.notes && !loading && stats?.cache_ready && (
+      {stats?.notes && !loading && ready && (
         <p className="meta-line">{stats.notes}</p>
       )}
     </section>

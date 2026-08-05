@@ -1,54 +1,40 @@
 """
-Talk to NYC Open Data (Socrata / SODA) using sodapy + pandas.
+Talk to NYC Open Data (Socrata / SODA) using sodapy — LIVE queries only.
 
-Dataset used by this project (OPEN violations only):
+Dataset (OPEN violations only):
   https://data.cityofnewyork.us/api/v3/views/csn4-vhvf/query.json
   Dataset id: csn4-vhvf  (~2.9 million currently open rows)
 
-  Do NOT switch this to the full historical Housing Maintenance Code
-  Violations dataset unless the project owner explicitly asks for that.
+This module does NOT download or store a local SQLite copy.
+Every list page, chart, and AI summary asks the SODA API for fresh data.
 
-Download flow (required order):
-  1) Ask the API about rate / page limits (probe request + headers).
-  2) Ask how many entries exist (COUNT(*)).
-  3) Download every row with limit + offset paging (sodapy + pandas).
-
-App token / credentials come from the root .env file
-(see SOCRATA_* variables). Restart Django after editing .env.
+Non-technical tip:
+  Put SOCRATA_APP_TOKEN in the root .env file. Without it, requests are
+  slower and more likely to time out. Restart Django after editing .env.
 """
 
 from __future__ import annotations
 
 import logging
-import sqlite3
 import time
-from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
-import pandas as pd
 import requests
 from django.conf import settings
+from requests.exceptions import ReadTimeout, RequestException
 from sodapy import Socrata
 
 logger = logging.getLogger(__name__)
 
-# SODA defaults from Socrata docs:
-#   - default page size is 1000
-#   - maximum rows per request is typically 50_000
-#   - with an app token, ~1000 requests / rolling hour is common
 SODA_DEFAULT_PAGE_SIZE = 1000
 SODA_ABSOLUTE_MAX_PAGE_SIZE = 50_000
 SODA_APP_TOKEN_REQUESTS_PER_HOUR = 1000
-SODA_NO_TOKEN_REQUESTS_PER_HOUR = 100  # shared IP pool — keep conservative
+SODA_NO_TOKEN_REQUESTS_PER_HOUR = 100
+DEFAULT_RETRIES = 3
 
 
 def _build_client() -> Socrata:
-    """
-    Create a sodapy Socrata client from Django settings / .env values.
-
-    App token is strongly recommended (higher rate limits).
-    Username/password are optional — only needed for write access.
-    """
+    """Create a sodapy client from Django settings / root .env values."""
     return Socrata(
         settings.SOCRATA_DOMAIN,
         settings.SOCRATA_APP_TOKEN or None,
@@ -75,12 +61,7 @@ def _app_token_headers() -> dict[str, str]:
 
 
 def _extract_rate_headers(response: requests.Response) -> dict[str, str]:
-    """
-    Pull any rate-limit style headers the portal returns.
-
-    Socrata does not always send these, so values may be empty —
-    we still record whatever is present.
-    """
+    """Pull any rate-limit style headers the portal returns."""
     interesting = [
         "X-RateLimit-Limit",
         "X-RateLimit-Remaining",
@@ -95,305 +76,215 @@ def _extract_rate_headers(response: requests.Response) -> dict[str, str]:
         value = response.headers.get(key)
         if value:
             found[key] = value
-    # Also catch any other header that mentions rate/limit/throttle
     for key, value in response.headers.items():
         lowered = key.lower()
-        if any(word in lowered for word in ("rate", "limit", "throttle")):
+        if any(word in lowered for word in ("rate", "limit", "throttl")):
             found[key] = value
     return found
 
 
-def _probe_max_page_size() -> int:
+def soda_get(
+    client: Socrata | None = None,
+    *,
+    retries: int = DEFAULT_RETRIES,
+    **kwargs: Any,
+) -> list[dict[str, Any]]:
     """
-    Ask the API how large a single page can be.
+    Call sodapy get() with retries for timeouts / brief portal hiccups.
 
-    Tries the documented SODA max (50_000) with a tiny SELECT.
-    If that is rejected, falls back to the default 1000.
+    Non-technical tip:
+      If charts or the list keep failing, wait a minute and click Refresh,
+      and confirm SOCRATA_APP_TOKEN is set in .env.
     """
-    url = _resource_url()
-    headers = _app_token_headers()
-    # Prefer configured page size, but never exceed the SODA absolute max
-    desired = min(
-        int(settings.SOCRATA_PAGE_SIZE or SODA_ABSOLUTE_MAX_PAGE_SIZE),
-        SODA_ABSOLUTE_MAX_PAGE_SIZE,
+    owns = client is None
+    client = client or _build_client()
+    dataset_id = settings.SOCRATA_DATASET_ID
+    last_error: Exception | None = None
+    attempts = max(1, int(retries))
+
+    try:
+        for attempt in range(1, attempts + 1):
+            try:
+                return client.get(dataset_id, **kwargs)
+            except (ReadTimeout, RequestException) as exc:
+                last_error = exc
+                message = str(exc).lower()
+                retryable = (
+                    isinstance(exc, ReadTimeout)
+                    or "429" in message
+                    or "rate" in message
+                    or "throttl" in message
+                    or "timeout" in message
+                )
+                if not retryable or attempt >= attempts:
+                    break
+                delay = 2.0 * attempt
+                logger.warning(
+                    "SODA request failed (attempt %s/%s): %s — sleeping %.1fs",
+                    attempt,
+                    attempts,
+                    exc,
+                    delay,
+                )
+                time.sleep(delay)
+            except Exception as exc:
+                # sodapy sometimes wraps HTTP errors as generic Exception
+                last_error = exc
+                message = str(exc).lower()
+                if ("429" in message or "rate" in message) and attempt < attempts:
+                    time.sleep(2.0 * attempt)
+                    continue
+                raise
+    finally:
+        if owns:
+            client.close()
+
+    raise RuntimeError(
+        f"SODA request failed after {attempts} attempts: {last_error}"
     )
-
-    for candidate in (desired, SODA_ABSOLUTE_MAX_PAGE_SIZE, SODA_DEFAULT_PAGE_SIZE):
-        try:
-            response = requests.get(
-                url,
-                params={"$select": "violationid", "$limit": candidate},
-                headers=headers,
-                timeout=settings.SOCRATA_TIMEOUT,
-            )
-            if response.status_code == 200:
-                return candidate
-            logger.warning(
-                "Page-size probe failed for limit=%s (HTTP %s)",
-                candidate,
-                response.status_code,
-            )
-        except requests.RequestException as exc:
-            logger.warning("Page-size probe error for limit=%s: %s", candidate, exc)
-
-    return SODA_DEFAULT_PAGE_SIZE
 
 
 def discover_api_limits() -> dict[str, Any]:
     """
-    Step 1 — ask the API about rate / page limits before downloading.
+    Probe the SODA endpoint for practical page / rate limits.
 
-    Makes a lightweight probe request, reads rate-limit headers (when present),
-    and discovers the max rows-per-request (page size) we can use with $limit.
+    Still useful for status displays; we no longer use this to download
+    the whole table into a file.
     """
-    url = _resource_url()
+    has_app_token = bool((settings.SOCRATA_APP_TOKEN or "").strip())
+    page_limit = min(
+        int(settings.SOCRATA_PAGE_SIZE or SODA_ABSOLUTE_MAX_PAGE_SIZE),
+        SODA_ABSOLUTE_MAX_PAGE_SIZE,
+    )
+    # Tiny probe request — confirms the endpoint answers
     headers = _app_token_headers()
-    has_app_token = bool(headers)
-
     response = requests.get(
-        url,
-        params={"$select": "violationid", "$limit": 1},
+        _resource_url(),
+        params={"$limit": 1},
         headers=headers,
-        timeout=settings.SOCRATA_TIMEOUT,
+        timeout=min(60, settings.SOCRATA_TIMEOUT),
     )
     response.raise_for_status()
-
     rate_headers = _extract_rate_headers(response)
-    page_limit = _probe_max_page_size()
-
-    # Documented / inferred throttle when headers do not include a number
-    documented_requests_per_hour = (
-        SODA_APP_TOKEN_REQUESTS_PER_HOUR
-        if has_app_token
-        else SODA_NO_TOKEN_REQUESTS_PER_HOUR
-    )
-    header_limit = None
-    for key in ("X-RateLimit-Limit", "RateLimit-Limit"):
-        if key in rate_headers:
-            try:
-                header_limit = int(rate_headers[key])
-            except ValueError:
-                header_limit = None
-            break
-
-    limits = {
+    return {
+        "page_limit": page_limit,
+        "default_page_size": SODA_DEFAULT_PAGE_SIZE,
+        "absolute_max_page_size": SODA_ABSOLUTE_MAX_PAGE_SIZE,
         "has_app_token": has_app_token,
-        "page_limit": page_limit,  # use this as $limit when paging
-        "default_page_limit": SODA_DEFAULT_PAGE_SIZE,
-        "absolute_max_page_limit": SODA_ABSOLUTE_MAX_PAGE_SIZE,
-        "requests_per_hour": header_limit or documented_requests_per_hour,
-        "requests_per_hour_source": (
-            "response_header" if header_limit is not None else "socrata_docs"
+        "requests_per_hour_estimate": (
+            SODA_APP_TOKEN_REQUESTS_PER_HOUR
+            if has_app_token
+            else SODA_NO_TOKEN_REQUESTS_PER_HOUR
         ),
-        "rate_limit_headers": rate_headers,
-        "probe_status_code": response.status_code,
-        "resource_url": url,
-        "soda3_query_url": (
-            f"https://{settings.SOCRATA_DOMAIN}/api/v3/views/"
-            f"{settings.SOCRATA_DATASET_ID}/query.json"
-        ),
+        "rate_headers": rate_headers,
+        "source": "live_socrata_soda_api",
     }
-    logger.info(
-        "SODA limits: page_limit=%s, requests_per_hour=%s (%s), app_token=%s",
-        limits["page_limit"],
-        limits["requests_per_hour"],
-        limits["requests_per_hour_source"],
-        has_app_token,
-    )
-    return limits
 
 
-def get_record_count(client: Socrata | None = None) -> int:
-    """
-    Step 2 — ask the SODA endpoint how many rows are in the dataset.
-
-    Uses: select="count(*)"  (SoQL)
-    """
-    owns_client = client is None
+def get_record_count(
+    client: Socrata | None = None,
+    *,
+    where: str | None = None,
+) -> int:
+    """Ask the LIVE SODA endpoint how many rows match (optional SoQL where)."""
+    owns = client is None
     client = client or _build_client()
-    dataset_id = settings.SOCRATA_DATASET_ID
-
+    kwargs: dict[str, Any] = {"select": "count(*)"}
+    if where:
+        kwargs["where"] = where
     try:
-        result = client.get(dataset_id, select="count(*)")
+        rows = soda_get(client, **kwargs)
     finally:
-        if owns_client:
+        if owns:
             client.close()
-
-    if not result:
+    if not rows:
         return 0
-
-    row = result[0]
-    raw = row.get("count", row.get("COUNT", row.get("count_1", 0)))
+    raw = rows[0].get("count") or rows[0].get("COUNT") or 0
     return int(raw)
 
 
-def fetch_all_to_sqlite(
-    sqlite_file: Path,
-    table: str,
-    page_size: int | None = None,
-    max_rows: int | None = None,
-    progress_callback: Callable[[int, int], None] | None = None,
-) -> dict[str, Any]:
-    """
-    Download the SODA table into a local SQLite file.
-
-    Required order:
-      1. discover_api_limits()  — rate / page limits
-      2. get_record_count()     — total entries
-      3. page with limit+offset until the whole table is saved
-
-    Each page is converted with pandas, then appended to SQLite.
-    """
-    sqlite_file.parent.mkdir(parents=True, exist_ok=True)
-
-    # Start from a fresh file so a failed mid-run does not leave a half-old table
-    if sqlite_file.exists():
-        sqlite_file.unlink()
-
-    # ---- Step 1: rate / page limits -----------------------------------------
-    limits = discover_api_limits()
-    # Prefer the probed page limit; allow an explicit override from the caller
-    effective_page_size = page_size or limits["page_limit"]
-    if effective_page_size < 1:
-        raise ValueError("page_size must be at least 1")
-
-    client = _build_client()
-    columns: list[str] = []
-    rows_saved = 0
-
-    try:
-        # ---- Step 2: total entry count --------------------------------------
-        remote_total = get_record_count(client)
-        target = remote_total if max_rows is None else min(remote_total, max_rows)
-        logger.info(
-            "Socrata dataset %s reports %s rows; downloading %s with page_limit=%s",
-            settings.SOCRATA_DATASET_ID,
-            remote_total,
-            target,
-            effective_page_size,
-        )
-
-        if progress_callback:
-            progress_callback(0, target)
-
-        if target == 0:
-            with sqlite3.connect(sqlite_file) as conn:
-                conn.execute(f'CREATE TABLE "{table}" (violationid TEXT)')
-            return {
-                "rows_saved": 0,
-                "columns": ["violationid"],
-                "sqlite_path": str(sqlite_file),
-                "remote_total": 0,
-                "limits": limits,
-            }
-
-        # ---- Step 3: limit + offset paging ----------------------------------
-        offset = 0
-        first_page = True
-
-        while offset < target:
-            this_limit = min(effective_page_size, target - offset)
-            chunk = _get_page_with_retry(
-                client,
-                settings.SOCRATA_DATASET_ID,
-                limit=this_limit,
-                offset=offset,
-            )
-            if not chunk:
-                break
-
-            df = pd.DataFrame.from_records(chunk)
-            if first_page:
-                columns = list(df.columns)
-
-            with sqlite3.connect(sqlite_file) as conn:
-                df.to_sql(
-                    table,
-                    conn,
-                    if_exists="replace" if first_page else "append",
-                    index=False,
-                )
-
-            first_page = False
-            rows_saved += len(df)
-            offset += len(chunk)
-
-            if progress_callback:
-                progress_callback(min(rows_saved, target), target)
-
-            if len(chunk) < this_limit:
-                break
-
-        with sqlite3.connect(sqlite_file) as conn:
-            conn.execute(f'CREATE INDEX IF NOT EXISTS idx_soda_boro ON "{table}" (boro)')
-            conn.execute(
-                f'CREATE INDEX IF NOT EXISTS idx_soda_class ON "{table}" ("class")'
-            )
-            conn.execute(
-                f'CREATE INDEX IF NOT EXISTS idx_soda_status '
-                f'ON "{table}" (currentstatus)'
-            )
-            conn.execute(
-                f'CREATE INDEX IF NOT EXISTS idx_soda_insp '
-                f'ON "{table}" (inspectiondate)'
-            )
-
-        return {
-            "rows_saved": rows_saved,
-            "columns": columns,
-            "sqlite_path": str(sqlite_file),
-            "remote_total": remote_total,
-            "page_limit_used": effective_page_size,
-            "limits": limits,
-        }
-    finally:
-        client.close()
-
-
-def _get_page_with_retry(
-    client: Socrata,
-    dataset_id: str,
+def fetch_page(
     *,
     limit: int,
     offset: int,
-    attempts: int = 5,
+    where: str | None = None,
+    order: str | None = None,
+    client: Socrata | None = None,
 ) -> list[dict[str, Any]]:
     """
-    Fetch one page. If we hit HTTP 429 (rate limited), wait and retry.
+    Fetch one page of violation rows from the LIVE API.
+
+    Used by the inventory list (filter + sort + pagination).
     """
-    delay = 2.0
-    last_error: Exception | None = None
-
-    for attempt in range(1, attempts + 1):
-        try:
-            return client.get(dataset_id, limit=limit, offset=offset)
-        except Exception as exc:  # sodapy raises on HTTP errors
-            last_error = exc
-            message = str(exc).lower()
-            if "429" in message or "rate" in message or "throttl" in message:
-                logger.warning(
-                    "Rate limited on offset=%s (attempt %s/%s). Sleeping %.1fs",
-                    offset,
-                    attempt,
-                    attempts,
-                    delay,
-                )
-                time.sleep(delay)
-                delay = min(delay * 2, 60)
-                continue
-            raise
-
-    raise RuntimeError(
-        f"Failed to fetch page at offset={offset} after {attempts} attempts: {last_error}"
-    )
+    kwargs: dict[str, Any] = {
+        "limit": max(1, int(limit)),
+        "offset": max(0, int(offset)),
+    }
+    if where:
+        kwargs["where"] = where
+    if order:
+        kwargs["order"] = order
+    return soda_get(client, **kwargs)
 
 
-def dataframe_to_records(df: pd.DataFrame) -> list[dict[str, Any]]:
+def fetch_group_counts(
+    column: str,
+    *,
+    where: str | None = None,
+    top_n: int | None = None,
+    client: Socrata | None = None,
+) -> list[dict[str, Any]]:
     """
-    Convert a DataFrame to JSON-safe list-of-dicts for the API response.
-    Replaces pandas NaN with None so JSON encoding works cleanly.
+    Live SoQL GROUP BY count for one column.
+
+    Returns [{"name": "...", "value": 123}, ...] sorted by count descending.
     """
-    if df is None or df.empty:
-        return []
-    clean = df.where(pd.notnull(df), None)
-    return clean.to_dict(orient="records")
+    kwargs: dict[str, Any] = {
+        "select": f"{column}, count(*) as count",
+        "group": column,
+        "order": "count DESC",
+    }
+    if where:
+        kwargs["where"] = where
+    if top_n:
+        kwargs["limit"] = int(top_n)
+
+    rows = soda_get(client, **kwargs)
+    out: list[dict[str, Any]] = []
+    for row in rows or []:
+        name = row.get(column)
+        if name is None or str(name).strip() == "":
+            continue
+        out.append({"name": str(name), "value": int(row.get("count") or 0)})
+    return out
+
+
+def fetch_monthly_counts(
+    *,
+    where: str | None = None,
+    month_count: int = 36,
+    client: Socrata | None = None,
+) -> list[dict[str, Any]]:
+    """
+    Live monthly inspection counts via date_trunc_ym(inspectiondate).
+
+    Returns oldest → newest [{"name": "YYYY-MM", "value": n}, ...].
+    """
+    kwargs: dict[str, Any] = {
+        "select": "date_trunc_ym(inspectiondate) as month, count(*) as count",
+        "group": "month",
+        "order": "month DESC",
+        "limit": int(month_count),
+    }
+    if where:
+        kwargs["where"] = where
+
+    rows = soda_get(client, **kwargs)
+    points: list[dict[str, Any]] = []
+    for row in rows or []:
+        month = str(row.get("month") or "")
+        if len(month) < 7:
+            continue
+        points.append({"name": month[:7], "value": int(row.get("count") or 0)})
+    points.reverse()
+    return points

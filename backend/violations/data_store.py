@@ -1,23 +1,23 @@
 """
-Local cache of the SODA table.
+Live Open HPD Violations queries (no local SQLite cache).
 
-Why a local cache?
-  The Open HPD Violations dataset has millions of rows. We download it once
-  into a SQLite file, then filter/sort/page from that file for the frontend.
+What this file does:
+  Translates inventory filters into SoQL, then asks the NYC Open Data SODA
+  API for pages, counts, and filter dropdown values — always fresh from source.
 
-Files live under backend/data/ (gitignored — too large to commit).
+Non-technical tip:
+  If the list is empty or slow, check SOCRATA_APP_TOKEN in the root .env and
+  that your machine can reach data.cityofnewyork.us. You do NOT need to run
+  fetch_soda_violations anymore (that command was removed).
 """
 
 from __future__ import annotations
 
-import sqlite3
-from pathlib import Path
 from typing import Any
 
 from django.conf import settings
 
-from .socrata_client import fetch_all_to_sqlite
-
+from . import socrata_client
 
 # Full SODA column set for Open HPD Violations (csn4-vhvf).
 # The frontend shows every one of these, even when a cell is blank.
@@ -54,127 +54,78 @@ ALL_COLUMNS = [
     "currentstatusdate",
 ]
 
-# Any known column may be used for sorting from the inventory headers
 SORTABLE_COLUMNS = set(ALL_COLUMNS)
 
 
-def sqlite_path() -> Path:
-    """Full path to the local SQLite cache file."""
-    return Path(settings.SOCRATA_SQLITE_PATH)
+def escape_soql(value: str) -> str:
+    """Escape single quotes for safe SoQL string literals."""
+    return (value or "").replace("'", "''")
 
 
-def table_name() -> str:
-    """SQL table name inside the SQLite file."""
-    return settings.SOCRATA_TABLE_NAME
-
-
-def cache_exists() -> bool:
-    """True when the local SQLite file already has our table."""
-    path = sqlite_path()
-    if not path.exists():
-        return False
-    with sqlite3.connect(path) as conn:
-        row = conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
-            (table_name(),),
-        ).fetchone()
-    return row is not None
-
-
-def cached_row_count() -> int:
-    """How many rows are currently stored locally."""
-    if not cache_exists():
-        return 0
-    with sqlite3.connect(sqlite_path()) as conn:
-        row = conn.execute(f'SELECT COUNT(*) FROM "{table_name()}"').fetchone()
-    return int(row[0]) if row else 0
-
-
-def refresh_from_socrata(progress_callback=None, max_rows=None) -> dict[str, Any]:
+def build_soql_where(
+    *,
+    search: str = "",
+    boro: str = "",
+    violation_class: str = "",
+    status: str = "",
+) -> str | None:
     """
-    One-time (or re-run) download of the SODA table into SQLite.
+    Build a SoQL WHERE clause from inventory toolbar filters.
 
-    1) COUNT(*) from the remote API
-    2) Page through rows (past the 1000 default limit)
-    3) Append each pandas page into backend/data/soda_violations.sqlite3
-
-    Pass max_rows to download only a sample (for a quicker smoke test).
+    Same meaning as the old SQLite filters — Search / Borough / Class / Status.
+    Returns None when nothing is filtered (whole open-violations table).
     """
-    Path(settings.SOCRATA_DATA_DIR).mkdir(parents=True, exist_ok=True)
-    return fetch_all_to_sqlite(
-        sqlite_file=sqlite_path(),
-        table=table_name(),
-        page_size=settings.SOCRATA_PAGE_SIZE,
-        max_rows=max_rows,
-        progress_callback=progress_callback,
-    )
+    clauses: list[str] = []
+
+    if boro:
+        clauses.append(f"upper(boro)='{escape_soql(boro.strip().upper())}'")
+
+    if violation_class:
+        # Field name is literally "class" (works in SoQL without quotes here)
+        clauses.append(f"upper(class)='{escape_soql(violation_class.strip().upper())}'")
+
+    if status:
+        needle = escape_soql(status.strip().upper())
+        clauses.append(f"upper(currentstatus) like '%{needle}%'")
+
+    if search:
+        needle = escape_soql(search.strip().upper())
+        clauses.append(
+            "("
+            f"upper(streetname) like '%{needle}%' OR "
+            f"upper(housenumber) like '%{needle}%' OR "
+            f"upper(novdescription) like '%{needle}%' OR "
+            f"upper(violationid) like '%{needle}%' OR "
+            f"upper(zip) like '%{needle}%' OR "
+            f"upper(apartment) like '%{needle}%'"
+            ")"
+        )
+
+    if not clauses:
+        return None
+    return " AND ".join(clauses)
 
 
+# Back-compat name used by analysis_context / older call sites
 def build_filter_clause(
     *,
     search: str = "",
     boro: str = "",
     violation_class: str = "",
     status: str = "",
-) -> tuple[str, list[Any]]:
+) -> tuple[str | None, list[Any]]:
     """
-    Build a SQL WHERE clause + bound parameters from inventory filters.
-
-    Used by the list API and by AI/dashboard summaries so both see the same
-    filtered slice of the open-violations cache.
-
-    Returns:
-      ("", [])                         — no filters (whole open table)
-      ("WHERE boro = ? AND ...", [...]) — filtered
-
-    Non-technical tip:
-      These are the same controls as the frontend toolbar (Search / Borough /
-      Class / Status). Using ? placeholders keeps user text from breaking SQL.
+    Return (soql_where, []) — second value kept empty for call-site compatibility.
+    (We no longer use SQL bound parameters; SoQL is a single where string.)
     """
-    clauses: list[str] = []
-    params: list[Any] = []
-
-    if boro:
-        clauses.append("UPPER(boro) = UPPER(?)")
-        params.append(boro.strip())
-
-    if violation_class:
-        # SODA field name is literally "class"
-        clauses.append('UPPER("class") = UPPER(?)')
-        params.append(violation_class.strip())
-
-    if status:
-        clauses.append("currentstatus LIKE ?")
-        params.append(f"%{status.strip()}%")
-
-    if search:
-        needle = f"%{search.strip()}%"
-        clauses.append(
-            "("
-            "streetname LIKE ? OR housenumber LIKE ? OR novdescription LIKE ? "
-            "OR violationid LIKE ? OR zip LIKE ? OR apartment LIKE ?"
-            ")"
-        )
-        params.extend([needle, needle, needle, needle, needle, needle])
-
-    if not clauses:
-        return "", params
-    return "WHERE " + " AND ".join(clauses), params
-
-
-def _build_where(
-    *,
-    search: str,
-    boro: str,
-    violation_class: str,
-    status: str,
-) -> tuple[str, list[Any]]:
-    """Internal alias — list queries call the shared filter builder above."""
-    return build_filter_clause(
-        search=search,
-        boro=boro,
-        violation_class=violation_class,
-        status=status,
+    return (
+        build_soql_where(
+            search=search,
+            boro=boro,
+            violation_class=violation_class,
+            status=status,
+        ),
+        [],
     )
 
 
@@ -190,75 +141,56 @@ def query_violations(
     page_size: int = 50,
 ) -> dict[str, Any]:
     """
-    Filter + sort + page the local SODA cache using SQL.
+    Filter + sort + page LIVE from SODA.
 
-    Returns a dict ready for the JSON API:
-      { count, page, page_size, total_pages, results, columns, ... }
+    Returns the same JSON shape the frontend inventory list already expects.
     """
-    if not cache_exists():
+    sort_col = sort if sort in SORTABLE_COLUMNS else "inspectiondate"
+    order_sql = "DESC" if str(order).lower() == "desc" else "ASC"
+
+    page = max(1, int(page))
+    page_size = max(1, min(int(page_size), 500))
+    offset = (page - 1) * page_size
+
+    where = build_soql_where(
+        search=search,
+        boro=boro,
+        violation_class=violation_class,
+        status=status,
+    )
+
+    try:
+        total = socrata_client.get_record_count(where=where)
+        rows = socrata_client.fetch_page(
+            limit=page_size,
+            offset=offset,
+            where=where,
+            order=f"{sort_col} {order_sql}",
+        )
+    except Exception as exc:
         return {
             "count": 0,
             "page": page,
             "page_size": page_size,
             "total_pages": 0,
             "results": [],
-            # Still advertise the full column set so the UI can render headers
             "columns": list(ALL_COLUMNS),
-            "cache_ready": False,
+            "source": "live_socrata_soda_api",
+            "error": str(exc),
             "message": (
-                "Local SODA cache is empty. Run: "
-                "python manage.py fetch_soda_violations"
+                "Could not load violations from NYC Open Data. "
+                "Check SOCRATA_APP_TOKEN in .env and your network connection."
             ),
         }
 
-    sort_col = sort if sort in SORTABLE_COLUMNS else "inspectiondate"
-    # Quote "class" because it is a SQL keyword
-    sort_sql = f'"{sort_col}"' if sort_col == "class" else sort_col
-    order_sql = "DESC" if order.lower() == "desc" else "ASC"
-
-    page = max(1, int(page))
-    # Frontend inventory list can request larger pages for dynamic sizing
-    page_size = max(1, min(int(page_size), 500))
-    offset = (page - 1) * page_size
-
-    where_sql, params = _build_where(
-        search=search,
-        boro=boro,
-        violation_class=violation_class,
-        status=status,
-    )
-    tbl = table_name()
-
-    with sqlite3.connect(sqlite_path()) as conn:
-        conn.row_factory = sqlite3.Row
-
-        count_row = conn.execute(
-            f'SELECT COUNT(*) AS n FROM "{tbl}" {where_sql}',
-            params,
-        ).fetchone()
-        total = int(count_row["n"]) if count_row else 0
-
-        rows = conn.execute(
-            f'SELECT * FROM "{tbl}" {where_sql} '
-            f"ORDER BY {sort_sql} {order_sql} "
-            f"LIMIT ? OFFSET ?",
-            [*params, page_size, offset],
-        ).fetchall()
-
-        # Column names from SQLite (stable order)
-        col_info = conn.execute(f'PRAGMA table_info("{tbl}")').fetchall()
-        sqlite_columns = [c["name"] for c in col_info]
-
-    # Prefer live SQLite columns, then append any missing known SODA fields
-    columns = list(sqlite_columns)
+    # Prefer columns from the first live row, then fill known SODA fields
+    columns = list(rows[0].keys()) if rows else list(ALL_COLUMNS)
     for name in ALL_COLUMNS:
         if name not in columns:
             columns.append(name)
 
-    # Normalize every row so each column key is present (blank -> "")
     results = []
-    for row in rows:
-        raw = dict(row)
+    for raw in rows:
         normalized = {}
         for name in columns:
             value = raw.get(name)
@@ -274,42 +206,48 @@ def query_violations(
         "total_pages": total_pages,
         "results": results,
         "columns": columns,
-        "cache_ready": True,
-        "cached_total": cached_row_count(),
+        "source": "live_socrata_soda_api",
+        "dataset_id": settings.SOCRATA_DATASET_ID,
     }
 
 
 def filter_options() -> dict[str, list[str]]:
     """
-    Distinct values for dropdown filters on the frontend.
+    Distinct borough / class / status values for frontend dropdowns (LIVE).
     """
-    if not cache_exists():
+    try:
+        boros = [r["name"] for r in socrata_client.fetch_group_counts("boro")]
+        classes = [r["name"] for r in socrata_client.fetch_group_counts("class")]
+        statuses = [
+            r["name"]
+            for r in socrata_client.fetch_group_counts("currentstatus", top_n=200)
+        ]
+    except Exception:
         return {"boro": [], "class": [], "currentstatus": []}
 
-    tbl = table_name()
-    with sqlite3.connect(sqlite_path()) as conn:
-        boros = [
-            r[0]
-            for r in conn.execute(
-                f'SELECT DISTINCT boro FROM "{tbl}" '
-                f"WHERE boro IS NOT NULL AND TRIM(boro) != '' ORDER BY boro"
-            )
-        ]
-        classes = [
-            r[0]
-            for r in conn.execute(
-                f'SELECT DISTINCT "class" FROM "{tbl}" '
-                f'WHERE "class" IS NOT NULL AND TRIM("class") != "" '
-                f'ORDER BY "class"'
-            )
-        ]
-        statuses = [
-            r[0]
-            for r in conn.execute(
-                f'SELECT DISTINCT currentstatus FROM "{tbl}" '
-                f"WHERE currentstatus IS NOT NULL AND TRIM(currentstatus) != '' "
-                f"ORDER BY currentstatus"
-            )
-        ]
+    # Sort for stable dropdowns
+    return {
+        "boro": sorted(boros),
+        "class": sorted(classes),
+        "currentstatus": sorted(statuses),
+    }
 
-    return {"boro": boros, "class": classes, "currentstatus": statuses}
+
+def remote_status() -> dict[str, Any]:
+    """
+    Lightweight status for the topbar: live API reachability + row count.
+    """
+    payload: dict[str, Any] = {
+        "source": "live_socrata_soda_api",
+        "dataset_id": settings.SOCRATA_DATASET_ID,
+        "domain": settings.SOCRATA_DOMAIN,
+        "has_app_token": bool(settings.SOCRATA_APP_TOKEN),
+        "api_ready": False,
+        "remote_rows": None,
+    }
+    try:
+        payload["remote_rows"] = socrata_client.get_record_count()
+        payload["api_ready"] = True
+    except Exception as exc:
+        payload["error"] = str(exc)
+    return payload

@@ -11,9 +11,8 @@ django-cors-headers>=4.3,<5.0
 python-dotenv>=1.0,<2.0
 requests>=2.32,<3.0
 
-# NYC Open Data (Socrata / SODA) — as shown in Socrata docs
+# NYC Open Data (Socrata / SODA) — live queries via sodapy (no local table download)
 sodapy>=2.2,<3.0
-pandas>=2.2,<3.0
 
 # Dev / build checks (no screenshot or video recording tools)
 pytest>=8.0,<9.0
