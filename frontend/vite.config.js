@@ -9,6 +9,10 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
+  // Recharts + journey UI exceed Vite’s default 500 kB hint; not a deploy failure.
+  build: {
+    chunkSizeWarningLimit: 900,
+  },
   server: {
     // Vite default is 5173 (not 5713). Keep this explicit for clarity.
     port: 5173,

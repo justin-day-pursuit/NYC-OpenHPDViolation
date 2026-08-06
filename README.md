@@ -224,11 +224,16 @@ git push
 ### Connect Vercel
 
 1. Import this GitHub repo in Vercel.
-2. Root [`vercel.json`](vercel.json) already points `outputDirectory` at `snapshot/`
-   (no install/build on Vercel — the snapshot is pre-built and committed).
-3. Redeploy happens automatically on push when `snapshot/` changes.
+2. In Project Settings, set **Root Directory** to the repo root (`.`) — not `frontend/`.
+3. Prefer Framework = **Other** (or leave blank). Root [`vercel.json`](vercel.json) sets:
+   - `installCommand` → `npm install --prefix frontend`
+   - `buildCommand` → `bash scripts/update-snapshot.sh` (builds static mode → `snapshot/`)
+   - `outputDirectory` → `snapshot`
+4. Clear any dashboard Output Directory override that conflicts with `vercel.json`.
+5. Redeploy. Vercel rebuilds `snapshot/` on every deploy so the Output Directory always exists.
 
 Do **not** edit `snapshot/` by hand — see [`snapshot/README.md`](snapshot/README.md).
+Committing an updated `snapshot/` locally is still useful for previewing without Vercel.
 
 ---
 

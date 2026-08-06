@@ -14,7 +14,7 @@ From the **project root**:
 ./scripts/update-snapshot.sh
 ```
 
-Then commit and push:
+Then commit and push (optional locally; Vercel also runs this script on deploy):
 
 ```bash
 git add snapshot frontend/public/analysis
@@ -22,7 +22,8 @@ git commit -m "Refresh static snapshot"
 git push
 ```
 
-Vercel will pick up the new `snapshot/` contents on the next deploy.
+On Vercel, `vercel.json` runs `bash scripts/update-snapshot.sh` so the
+`snapshot/` Output Directory is always created during the cloud build.
 
 ## When to refresh
 

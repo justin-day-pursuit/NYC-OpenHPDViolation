@@ -1,8 +1,9 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "version": 2,
-  "buildCommand": null,
-  "installCommand": null,
+  "framework": null,
+  "installCommand": "npm install --prefix frontend",
+  "buildCommand": "bash scripts/update-snapshot.sh",
   "outputDirectory": "snapshot",
   "cleanUrls": true,
   "trailingSlash": false,
