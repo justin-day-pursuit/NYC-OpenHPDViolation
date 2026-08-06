@@ -12,7 +12,8 @@
     "buildings_with_open_violations": 167781,
     "total_open_violations_deduped": 2923363,
     "hazard_theme_analyzed_at": "2026-08-05T19:57:49Z",
-    "final_insight_analyzed_at": "2026-08-05T21:35:00Z"
+    "final_insight_analyzed_at": "2026-08-06T16:39:02Z",
+    "mold_vs_pests_analyzed_at": "2026-08-06T16:46:50Z"
   },
   "hypothesis": {
     "statement": "Open violations are concentrated in a small fraction of buildings.",
@@ -2023,14 +2024,14 @@
         "name": "Class B (other)",
         "share_pre_2020_pct": 52.8,
         "median_year": 2019,
-        "n": 1169509,
+        "n": 1169476,
         "role": "Oldest Class B backlog"
       },
       {
         "name": "Class B mold/water",
         "share_pre_2020_pct": 36.4,
         "median_year": 2022,
-        "n": 220555,
+        "n": 220489,
         "highlight": true,
         "role": "Moisture channel (older than Class C)"
       },
@@ -2038,14 +2039,14 @@
         "name": "All opens",
         "share_pre_2020_pct": 40.5,
         "median_year": 2022,
-        "n": 2908302,
+        "n": 2907461,
         "role": "City baseline"
       },
       {
         "name": "Class C",
         "share_pre_2020_pct": 31.5,
         "median_year": 2023,
-        "n": 596165,
+        "n": 595993,
         "role": "Turns over faster"
       }
     ],
@@ -2063,17 +2064,17 @@
         "name": "Next 200",
         "short": "Next 200",
         "class_B_mold_water_pct": 10.2,
-        "mold_water_pct": 14.0,
+        "mold_water_pct": 13.9,
         "class_B_pct": 55.4,
-        "bmw_pre_2020_pct": 18.0
+        "bmw_pre_2020_pct": 17.7
       },
       {
         "name": "Lower-burden\nband",
         "short": "Lower-burden",
         "class_B_mold_water_pct": 7.6,
-        "mold_water_pct": 10.3,
-        "class_B_pct": 52.8,
-        "bmw_pre_2020_pct": 50.7
+        "mold_water_pct": 10.4,
+        "class_B_pct": 51.8,
+        "bmw_pre_2020_pct": 51.4
       },
       {
         "name": "Citywide",
@@ -2100,14 +2101,14 @@
       },
       {
         "name": "Multi-dwelling\n(lower-burden)",
-        "class_B_mold_water_pct": 7.6,
-        "bmw_pre_2020_pct": 21.6,
-        "buildings": 52
+        "class_B_mold_water_pct": 7.8,
+        "bmw_pre_2020_pct": 19.3,
+        "buildings": 51
       },
       {
         "name": "Limited-unit\n(lower-burden)",
-        "class_B_mold_water_pct": 7.5,
-        "bmw_pre_2020_pct": 83.2,
+        "class_B_mold_water_pct": 7.1,
+        "bmw_pre_2020_pct": 85.9,
         "buildings": 34
       }
     ],
@@ -2115,19 +2116,60 @@
       {
         "name": "Multi-dwelling",
         "top_200": 188,
-        "lower_burden": 52,
-        "highlight_key": "top_200"
+        "lower_burden": 51
       },
       {
         "name": "Small multi",
         "top_200": 12,
-        "lower_burden": 114
+        "lower_burden": 115
       },
       {
         "name": "Limited-unit / single-ish",
         "top_200": 0,
-        "lower_burden": 34,
-        "highlight_key": "contrast"
+        "lower_burden": 34
+      }
+    ],
+    "mold_vs_pests_compare": [
+      {
+        "name": "All NYC\n(open violations)",
+        "short": "Citywide",
+        "mold_moisture_pct": 10.1,
+        "pests_pct": 14.6,
+        "highlight": false
+      },
+      {
+        "name": "Multi-dwelling\n(top 200 burden)",
+        "short": "Multi-dwelling top 200",
+        "mold_moisture_pct": 16.1,
+        "pests_pct": 11.6,
+        "highlight": true
+      },
+      {
+        "name": "Multi-dwelling\n(lower burden)",
+        "short": "Lower-burden multi",
+        "mold_moisture_pct": 11.5,
+        "pests_pct": 14.4,
+        "highlight": false
+      }
+    ],
+    "mold_vs_pests_lift": [
+      {
+        "name": "Mold & moisture",
+        "lift": 1.59,
+        "citywide_pct": 10.1,
+        "multi_dwelling_pct": 16.1,
+        "delta_pp": 6.0,
+        "highlight": true,
+        "direction": "more common in high-burden multi-dwellings"
+      },
+      {
+        "name": "Pests",
+        "lift": 0.79,
+        "citywide_pct": 14.6,
+        "multi_dwelling_pct": 11.6,
+        "delta_pp": -3.0,
+        "highlight": false,
+        "direction": "less common in high-burden multi-dwellings"
       }
     ]
   },
@@ -2157,7 +2199,13 @@
     "final_top200_bmw_pct": 11.4,
     "final_city_bmw_pct": 7.5,
     "final_top200_multi_buildings": 188,
-    "final_top200_limited_buildings": 0
+    "final_top200_limited_buildings": 0,
+    "mvp_city_mw_pct": 10.1,
+    "mvp_city_pests_pct": 14.6,
+    "mvp_multi_mw_pct": 16.1,
+    "mvp_multi_pests_pct": 11.6,
+    "mvp_mw_lift": 1.59,
+    "mvp_pests_lift": 0.79
   },
   "top_building_structure": {
     "finding": {
@@ -9257,58 +9305,52 @@
     },
     "citywide_slice_stats": {
       "all_opens": {
-        "n": 2908302,
+        "n": 2907461,
         "median_year": 2022,
-        "share_pre_2020": 0.4049,
+        "share_pre_2020": 0.405,
         "share_pre_2022": 0.495
       },
       "class_B": {
-        "n": 1390066,
+        "n": 1389967,
         "median_year": 2019,
-        "share_pre_2020": 0.5017,
-        "share_pre_2022": 0.5783
+        "share_pre_2020": 0.5016,
+        "share_pre_2022": 0.5782
       },
       "class_C": {
-        "n": 596165,
+        "n": 595993,
         "median_year": 2023,
         "share_pre_2020": 0.3152,
         "share_pre_2022": 0.4174
       },
       "class_A": {
-        "n": 682753,
+        "n": 682280,
         "median_year": 2022,
-        "share_pre_2020": 0.3362,
-        "share_pre_2022": 0.4447
+        "share_pre_2020": 0.3364,
+        "share_pre_2022": 0.4449
       },
       "mold_water": {
-        "n": 294504,
+        "n": 294411,
         "median_year": 2022,
-        "share_pre_2020": 0.3495,
-        "share_pre_2022": 0.4525
+        "share_pre_2020": 0.3496,
+        "share_pre_2022": 0.4526
       },
       "class_B_mold_water": {
-        "n": 220555,
+        "n": 220489,
         "median_year": 2022,
         "share_pre_2020": 0.3636,
         "share_pre_2022": 0.4625
       },
       "class_B_not_mold_water": {
-        "n": 1169509,
+        "n": 1169476,
         "median_year": 2019,
         "share_pre_2020": 0.5277,
-        "share_pre_2022": 0.6001
+        "share_pre_2022": 0.6
       },
       "class_C_mold_water": {
-        "n": 32544,
+        "n": 32550,
         "median_year": 2023,
         "share_pre_2020": 0.3331,
-        "share_pre_2022": 0.4193
-      },
-      "not_B_mold_water": {
-        "n": 73949,
-        "median_year": 2023,
-        "share_pre_2020": 0.3076,
-        "share_pre_2022": 0.4229
+        "share_pre_2022": 0.4192
       }
     },
     "tiers": {
@@ -9320,54 +9362,60 @@
           "small_multi": 12
         },
         "overall": {
-          "opens": 108150,
+          "opens": 108233,
           "class_B_share": 0.5604,
           "class_C_share": 0.2719,
-          "mold_water_share": 0.1582,
+          "mold_water_share": 0.1581,
+          "pests_share": 0.1143,
+          "pests_count": 12373,
+          "mold_water_count": 17110,
           "class_B_mold_water_share": 0.1139,
           "class_B_mold_water_age": {
-            "n": 12313,
+            "n": 12320,
             "median_year": 2024,
-            "share_pre_2020": 0.1122,
-            "share_pre_2022": 0.2178
+            "share_pre_2020": 0.1121,
+            "share_pre_2022": 0.2177
           },
           "class_B_other_age": {
-            "n": 48252,
+            "n": 48298,
             "median_year": 2024,
-            "share_pre_2020": 0.1825,
-            "share_pre_2022": 0.2808
+            "share_pre_2020": 0.1823,
+            "share_pre_2022": 0.2805
           },
           "class_B_age": {
-            "n": 60565,
+            "n": 60618,
             "median_year": 2024,
-            "share_pre_2020": 0.1682,
-            "share_pre_2022": 0.268
+            "share_pre_2020": 0.168,
+            "share_pre_2022": 0.2677
           }
         },
         "by_proxy": {
           "multi_dwelling": {
-            "opens": 102391,
-            "class_B_share": 0.5589,
-            "class_C_share": 0.2738,
+            "opens": 102474,
+            "class_B_share": 0.559,
+            "class_C_share": 0.2739,
             "mold_water_share": 0.1606,
+            "pests_share": 0.1156,
+            "pests_count": 11851,
+            "mold_water_count": 16453,
             "class_B_mold_water_share": 0.1154,
             "class_B_mold_water_age": {
-              "n": 11815,
+              "n": 11822,
               "median_year": 2024,
               "share_pre_2020": 0.095,
-              "share_pre_2022": 0.2001
+              "share_pre_2022": 0.2
             },
             "class_B_other_age": {
-              "n": 45376,
+              "n": 45422,
               "median_year": 2024,
-              "share_pre_2020": 0.1607,
-              "share_pre_2022": 0.2586
+              "share_pre_2020": 0.1606,
+              "share_pre_2022": 0.2583
             },
             "class_B_age": {
-              "n": 57191,
+              "n": 57244,
               "median_year": 2024,
-              "share_pre_2020": 0.1472,
-              "share_pre_2022": 0.2465
+              "share_pre_2020": 0.147,
+              "share_pre_2022": 0.2462
             },
             "buildings": 188
           },
@@ -9376,6 +9424,9 @@
             "class_B_share": 0.5859,
             "class_C_share": 0.2367,
             "mold_water_share": 0.1141,
+            "pests_share": 0.0906,
+            "pests_count": 522,
+            "mold_water_count": 657,
             "class_B_mold_water_share": 0.0865,
             "class_B_mold_water_age": {
               "n": 498,
@@ -9407,86 +9458,95 @@
         "label": "NEXT 200",
         "buildings": 200,
         "proxy_building_counts": {
-          "multi_dwelling": 182,
-          "small_multi": 18
+          "multi_dwelling": 181,
+          "small_multi": 19
         },
         "overall": {
-          "opens": 65617,
-          "class_B_share": 0.5541,
-          "class_C_share": 0.258,
-          "mold_water_share": 0.1395,
+          "opens": 65600,
+          "class_B_share": 0.5543,
+          "class_C_share": 0.257,
+          "mold_water_share": 0.1393,
+          "pests_share": 0.1039,
+          "pests_count": 6815,
+          "mold_water_count": 9138,
           "class_B_mold_water_share": 0.1021,
           "class_B_mold_water_age": {
-            "n": 6698,
+            "n": 6699,
             "median_year": 2024,
-            "share_pre_2020": 0.1804,
-            "share_pre_2022": 0.2971
+            "share_pre_2020": 0.1767,
+            "share_pre_2022": 0.2917
           },
           "class_B_other_age": {
-            "n": 29648,
+            "n": 29653,
             "median_year": 2023,
-            "share_pre_2020": 0.2653,
-            "share_pre_2022": 0.3809
+            "share_pre_2020": 0.2621,
+            "share_pre_2022": 0.3768
           },
           "class_B_age": {
-            "n": 36346,
+            "n": 36352,
             "median_year": 2023,
-            "share_pre_2020": 0.2497,
-            "share_pre_2022": 0.3654
+            "share_pre_2020": 0.2464,
+            "share_pre_2022": 0.3611
           }
         },
         "by_proxy": {
           "multi_dwelling": {
-            "opens": 59860,
-            "class_B_share": 0.5545,
-            "class_C_share": 0.2612,
-            "mold_water_share": 0.141,
-            "class_B_mold_water_share": 0.1038,
+            "opens": 59551,
+            "class_B_share": 0.5547,
+            "class_C_share": 0.2608,
+            "mold_water_share": 0.1409,
+            "pests_share": 0.1059,
+            "pests_count": 6304,
+            "mold_water_count": 8388,
+            "class_B_mold_water_share": 0.1039,
             "class_B_mold_water_age": {
-              "n": 6210,
+              "n": 6185,
               "median_year": 2024,
-              "share_pre_2020": 0.1723,
-              "share_pre_2022": 0.2911
+              "share_pre_2020": 0.1691,
+              "share_pre_2022": 0.2865
             },
             "class_B_other_age": {
-              "n": 26968,
+              "n": 26834,
               "median_year": 2023,
-              "share_pre_2020": 0.2522,
-              "share_pre_2022": 0.3704
+              "share_pre_2020": 0.2496,
+              "share_pre_2022": 0.3674
             },
             "class_B_age": {
-              "n": 33178,
+              "n": 33019,
               "median_year": 2023,
-              "share_pre_2020": 0.2373,
-              "share_pre_2022": 0.3555
+              "share_pre_2020": 0.2345,
+              "share_pre_2022": 0.3523
             },
-            "buildings": 182
+            "buildings": 181
           },
           "small_multi": {
-            "opens": 5757,
-            "class_B_share": 0.5503,
-            "class_C_share": 0.2241,
-            "mold_water_share": 0.1237,
-            "class_B_mold_water_share": 0.0848,
+            "opens": 6049,
+            "class_B_share": 0.551,
+            "class_C_share": 0.2195,
+            "mold_water_share": 0.124,
+            "pests_share": 0.0845,
+            "pests_count": 511,
+            "mold_water_count": 750,
+            "class_B_mold_water_share": 0.085,
             "class_B_mold_water_age": {
-              "n": 488,
+              "n": 514,
               "median_year": 2023,
-              "share_pre_2020": 0.2828,
-              "share_pre_2022": 0.373
+              "share_pre_2020": 0.2685,
+              "share_pre_2022": 0.3541
             },
             "class_B_other_age": {
-              "n": 2680,
+              "n": 2819,
               "median_year": 2022,
-              "share_pre_2020": 0.3974,
-              "share_pre_2022": 0.4866
+              "share_pre_2020": 0.3813,
+              "share_pre_2022": 0.4661
             },
             "class_B_age": {
-              "n": 3168,
+              "n": 3333,
               "median_year": 2022,
-              "share_pre_2020": 0.3797,
-              "share_pre_2022": 0.4691
+              "share_pre_2020": 0.3639,
+              "share_pre_2022": 0.4488
             },
-            "buildings": 18
+            "buildings": 19
           },
           "limited_unit": {
             "opens": 0,
@@ -9498,116 +9558,128 @@
         "label": "LOWER-BURDEN BAND",
         "buildings": 200,
         "proxy_building_counts": {
-          "multi_dwelling": 52,
-          "small_multi": 114,
-          "limited_unit": 34
+          "multi_dwelling": 51,
+          "limited_unit": 34,
+          "small_multi": 115
         },
         "overall": {
           "opens": 7000,
-          "class_B_share": 0.5281,
-          "class_C_share": 0.1843,
-          "mold_water_share": 0.1033,
-          "class_B_mold_water_share": 0.0757,
+          "class_B_share": 0.5179,
+          "class_C_share": 0.1909,
+          "mold_water_share": 0.1039,
+          "pests_share": 0.1316,
+          "pests_count": 921,
+          "mold_water_count": 727,
+          "class_B_mold_water_share": 0.0764,
           "class_B_mold_water_age": {
-            "n": 530,
+            "n": 535,
             "median_year": 2019,
-            "share_pre_2020": 0.5075,
-            "share_pre_2022": 0.6132
+            "share_pre_2020": 0.514,
+            "share_pre_2022": 0.6168
           },
           "class_B_other_age": {
-            "n": 3144,
+            "n": 3075,
             "median_year": 2013,
-            "share_pre_2020": 0.6851,
-            "share_pre_2022": 0.7376
+            "share_pre_2020": 0.6784,
+            "share_pre_2022": 0.7333
           },
           "class_B_age": {
-            "n": 3674,
+            "n": 3610,
             "median_year": 2014,
-            "share_pre_2020": 0.6595,
-            "share_pre_2022": 0.7197
+            "share_pre_2020": 0.654,
+            "share_pre_2022": 0.7161
           }
         },
         "by_proxy": {
           "multi_dwelling": {
-            "opens": 1820,
-            "class_B_share": 0.517,
-            "class_C_share": 0.2879,
-            "mold_water_share": 0.1093,
-            "class_B_mold_water_share": 0.0764,
+            "opens": 1785,
+            "class_B_share": 0.4913,
+            "class_C_share": 0.3148,
+            "mold_water_share": 0.1154,
+            "pests_share": 0.1445,
+            "pests_count": 258,
+            "mold_water_count": 206,
+            "class_B_mold_water_share": 0.0784,
             "class_B_mold_water_age": {
-              "n": 139,
+              "n": 140,
               "median_year": 2024,
-              "share_pre_2020": 0.2158,
-              "share_pre_2022": 0.3453
+              "share_pre_2020": 0.1929,
+              "share_pre_2022": 0.3071
             },
             "class_B_other_age": {
-              "n": 802,
-              "median_year": 2021,
-              "share_pre_2020": 0.4264,
-              "share_pre_2022": 0.52
+              "n": 737,
+              "median_year": 2022,
+              "share_pre_2020": 0.4179,
+              "share_pre_2022": 0.4993
             },
             "class_B_age": {
-              "n": 941,
-              "median_year": 2022,
-              "share_pre_2020": 0.3953,
-              "share_pre_2022": 0.4942
+              "n": 877,
+              "median_year": 2023,
+              "share_pre_2020": 0.382,
+              "share_pre_2022": 0.4686
             },
-            "buildings": 52
+            "buildings": 51
           },
           "small_multi": {
-            "opens": 3990,
-            "class_B_share": 0.5313,
-            "class_C_share": 0.1579,
-            "mold_water_share": 0.1035,
-            "class_B_mold_water_share": 0.0757,
+            "opens": 4025,
+            "class_B_share": 0.527,
+            "class_C_share": 0.158,
+            "mold_water_share": 0.1046,
+            "pests_share": 0.1289,
+            "pests_count": 519,
+            "mold_water_count": 421,
+            "class_B_mold_water_share": 0.077,
             "class_B_mold_water_age": {
-              "n": 302,
+              "n": 310,
               "median_year": 2019,
-              "share_pre_2020": 0.5464,
-              "share_pre_2022": 0.6656
+              "share_pre_2020": 0.5645,
+              "share_pre_2022": 0.6839
             },
             "class_B_other_age": {
-              "n": 1818,
+              "n": 1811,
               "median_year": 2013,
-              "share_pre_2020": 0.7409,
-              "share_pre_2022": 0.7871
+              "share_pre_2020": 0.7283,
+              "share_pre_2022": 0.7819
             },
             "class_B_age": {
-              "n": 2120,
+              "n": 2121,
               "median_year": 2014,
-              "share_pre_2020": 0.7132,
-              "share_pre_2022": 0.7698
+              "share_pre_2020": 0.7044,
+              "share_pre_2022": 0.7676
             },
-            "buildings": 114
+            "buildings": 115
           },
           "limited_unit": {
             "opens": 1190,
-            "class_B_share": 0.5345,
-            "class_C_share": 0.1143,
-            "mold_water_share": 0.0933,
-            "class_B_mold_water_share": 0.0748,
+            "class_B_share": 0.5269,
+            "class_C_share": 0.116,
+            "mold_water_share": 0.084,
+            "pests_share": 0.121,
+            "pests_count": 144,
+            "mold_water_count": 100,
+            "class_B_mold_water_share": 0.0714,
             "class_B_mold_water_age": {
-              "n": 89,
+              "n": 85,
               "median_year": 2011,
-              "share_pre_2020": 0.8315,
-              "share_pre_2022": 0.8539
+              "share_pre_2020": 0.8588,
+              "share_pre_2022": 0.8824
             },
             "class_B_other_age": {
-              "n": 524,
+              "n": 527,
               "median_year": 2004,
-              "share_pre_2020": 0.8874,
-              "share_pre_2022": 0.8989
+              "share_pre_2020": 0.871,
+              "share_pre_2022": 0.8937
             },
             "class_B_age": {
-              "n": 613,
+              "n": 612,
               "median_year": 2004,
-              "share_pre_2020": 0.8793,
-              "share_pre_2022": 0.8923
+              "share_pre_2020": 0.8693,
+              "share_pre_2022": 0.8922
             },
             "buildings": 34
           }
         },
-        "note": "Buildings around rank offset ~20,000 by open-violation count (lower burden than top/next 200)."
+        "note": "Buildings around rank offset ~20,000 by open-violation count."
       }
     },
     "charts": {
@@ -9616,14 +9688,14 @@
           "name": "Class B (other)",
           "share_pre_2020_pct": 52.8,
           "median_year": 2019,
-          "n": 1169509,
+          "n": 1169476,
           "role": "Oldest Class B backlog"
         },
         {
           "name": "Class B mold/water",
           "share_pre_2020_pct": 36.4,
           "median_year": 2022,
-          "n": 220555,
+          "n": 220489,
           "highlight": true,
           "role": "Moisture channel (older than Class C)"
         },
@@ -9631,14 +9703,14 @@
           "name": "All opens",
           "share_pre_2020_pct": 40.5,
           "median_year": 2022,
-          "n": 2908302,
+          "n": 2907461,
           "role": "City baseline"
         },
         {
           "name": "Class C",
           "share_pre_2020_pct": 31.5,
           "median_year": 2023,
-          "n": 596165,
+          "n": 595993,
           "role": "Turns over faster"
         }
       ],
@@ -9656,17 +9728,17 @@
           "name": "Next 200",
           "short": "Next 200",
           "class_B_mold_water_pct": 10.2,
-          "mold_water_pct": 14.0,
+          "mold_water_pct": 13.9,
           "class_B_pct": 55.4,
-          "bmw_pre_2020_pct": 18.0
+          "bmw_pre_2020_pct": 17.7
         },
         {
           "name": "Lower-burden\nband",
           "short": "Lower-burden",
           "class_B_mold_water_pct": 7.6,
-          "mold_water_pct": 10.3,
-          "class_B_pct": 52.8,
-          "bmw_pre_2020_pct": 50.7
+          "mold_water_pct": 10.4,
+          "class_B_pct": 51.8,
+          "bmw_pre_2020_pct": 51.4
         },
         {
           "name": "Citywide",
@@ -9693,96 +9765,110 @@
         },
         {
           "name": "Multi-dwelling\n(lower-burden)",
-          "class_B_mold_water_pct": 7.6,
-          "bmw_pre_2020_pct": 21.6,
-          "buildings": 52
+          "class_B_mold_water_pct": 7.8,
+          "bmw_pre_2020_pct": 19.3,
+          "buildings": 51
         },
         {
           "name": "Limited-unit\n(lower-burden)",
-          "class_B_mold_water_pct": 7.5,
-          "bmw_pre_2020_pct": 83.2,
+          "class_B_mold_water_pct": 7.1,
+          "bmw_pre_2020_pct": 85.9,
           "buildings": 34
-        }
-      ],
-      "structure_bars": [
-        {
-          "name": "Multi-dwelling",
-          "tier": "Top 200",
-          "group": "Top 200 \u00b7 Multi-dwelling",
-          "class_B_mold_water_pct": 11.5,
-          "mold_water_pct": 16.1,
-          "class_B_pct": 55.9,
-          "buildings": 188,
-          "opens": 102391,
-          "bmw_pre_2020_pct": 9.5,
-          "highlight": true
-        },
-        {
-          "name": "Small multi",
-          "tier": "Top 200",
-          "group": "Top 200 \u00b7 Small multi",
-          "class_B_mold_water_pct": 8.6,
-          "mold_water_pct": 11.4,
-          "class_B_pct": 58.6,
-          "buildings": 12,
-          "opens": 5759,
-          "bmw_pre_2020_pct": 51.8,
-          "highlight": false
-        },
-        {
-          "name": "Multi-dwelling",
-          "tier": "Lower-burden",
-          "group": "Lower-burden \u00b7 Multi-dwelling",
-          "class_B_mold_water_pct": 7.6,
-          "mold_water_pct": 10.9,
-          "class_B_pct": 51.7,
-          "buildings": 52,
-          "opens": 1820,
-          "bmw_pre_2020_pct": 21.6,
-          "highlight": false
-        },
-        {
-          "name": "Small multi",
-          "tier": "Lower-burden",
-          "group": "Lower-burden \u00b7 Small multi",
-          "class_B_mold_water_pct": 7.6,
-          "mold_water_pct": 10.3,
-          "class_B_pct": 53.1,
-          "buildings": 114,
-          "opens": 3990,
-          "bmw_pre_2020_pct": 54.6,
-          "highlight": false
-        },
-        {
-          "name": "Limited-unit / single-ish",
-          "tier": "Lower-burden",
-          "group": "Lower-burden \u00b7 Limited-unit / single-ish",
-          "class_B_mold_water_pct": 7.5,
-          "mold_water_pct": 9.3,
-          "class_B_pct": 53.4,
-          "buildings": 34,
-          "opens": 1190,
-          "bmw_pre_2020_pct": 83.2,
-          "highlight": false
         }
       ],
       "structure_building_counts": [
         {
           "name": "Multi-dwelling",
           "top_200": 188,
-          "lower_burden": 52,
-          "highlight_key": "top_200"
+          "lower_burden": 51
         },
         {
           "name": "Small multi",
           "top_200": 12,
-          "lower_burden": 114
+          "lower_burden": 115
         },
         {
           "name": "Limited-unit / single-ish",
           "top_200": 0,
-          "lower_burden": 34,
-          "highlight_key": "contrast"
+          "lower_burden": 34
+        }
+      ]
+    }
+  },
+  "mold_vs_pests_insight": {
+    "finding": {
+      "title": "Mold & moisture outrank pests in high-burden multi-dwellings",
+      "statement": "Across all currently open HPD violations citywide, pests appear in 14.6% of opens while mold & moisture (mold, leaks, plumbing, water damage) appear in 10.1%. In the multi-dwelling buildings among the top 200 by open-violation count (188 buildings, 102,474 opens), that ranking flips: mold & moisture are 16.1% of opens versus pests at 11.6%.",
+      "one_sentence": "In high-burden multi-dwelling buildings, mold & moisture (16.1% of open violations) are more common than pests (11.6%) \u2014 the reverse of the citywide pattern (pests 14.6% vs moisture 10.1%).",
+      "why_it_matters": "Pests are a familiar, high-volume citywide issue. In the buildings that carry the heaviest open-violation load \u2014 almost all multi-dwelling \u2014 mold and moisture problems take a larger share of the open inventory than pest problems do.",
+      "method_note": "Open HPD Violations only (csn4-vhvf); distinct violationid. Mold & moisture = NOV text match for mold/mildew/leak/plumbing/water damage. Pests = NOV text match for roach/mice/vermin/infestation/bedbug/rats. A violation can match both themes. Multi-dwelling = apartment/story proxy among each building\u2019s open violations (\u226510 distinct apartments, or \u22655 apartments with floor \u22654). Top 200 = buildings with the most open violations.",
+      "caveats": [
+        "Keyword matching on violation descriptions can miss or over-include some wording.",
+        "Apartment/story proxies are not official unit counts.",
+        "Shares can overlap (one open violation may mention both moisture and pests)."
+      ],
+      "moisture_wins_in_multi_dwelling": true,
+      "pests_win_citywide": true
+    },
+    "citywide": {
+      "opens": 2923363,
+      "mold_water_count": 294913,
+      "mold_water_pct": 10.1,
+      "pests_count": 425712,
+      "pests_pct": 14.6
+    },
+    "multi_dwelling_top200": {
+      "buildings": 188,
+      "opens": 102474,
+      "mold_water_count": 16453,
+      "mold_water_pct": 16.1,
+      "pests_count": 11851,
+      "pests_pct": 11.6,
+      "mold_water_lift": 1.59,
+      "pests_lift": 0.79
+    },
+    "charts": {
+      "compare": [
+        {
+          "name": "All NYC\n(open violations)",
+          "short": "Citywide",
+          "mold_moisture_pct": 10.1,
+          "pests_pct": 14.6,
+          "highlight": false
+        },
+        {
+          "name": "Multi-dwelling\n(top 200 burden)",
+          "short": "Multi-dwelling top 200",
+          "mold_moisture_pct": 16.1,
+          "pests_pct": 11.6,
+          "highlight": true
+        },
+        {
+          "name": "Multi-dwelling\n(lower burden)",
+          "short": "Lower-burden multi",
+          "mold_moisture_pct": 11.5,
+          "pests_pct": 14.4,
+          "highlight": false
+        }
+      ],
+      "lift": [
+        {
+          "name": "Mold & moisture",
+          "lift": 1.59,
+          "citywide_pct": 10.1,
+          "multi_dwelling_pct": 16.1,
+          "delta_pp": 6.0,
+          "highlight": true,
+          "direction": "more common in high-burden multi-dwellings"
+        },
+        {
+          "name": "Pests",
+          "lift": 0.79,
+          "citywide_pct": 14.6,
+          "multi_dwelling_pct": 11.6,
+          "delta_pp": -3.0,
+          "highlight": false,
+          "direction": "less common in high-burden multi-dwellings"
         }
       ]
     }

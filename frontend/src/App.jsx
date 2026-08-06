@@ -5,6 +5,7 @@
  * Layout:
  *  - overview charts from SQL (borough / class / status / monthly)
  *  - analysis journey (building concentration of open violations)
+ *  - key insight at the bottom of that journey (#data-insight)
  *  - toolbar with search, filters, sort, and page size
  *  - horizontally scrollable item list with sortable column headers
  *  - AI prompt bar under the list (Enter = analyze with Gemini)
@@ -13,6 +14,10 @@
  * Tip: set SOCRATA_APP_TOKEN in the root .env so live SODA requests work.
  * Charts and the inventory list query NYC Open Data on demand (no local cache).
  * The analysis journey section reads a snapshot JSON (see notebooks/).
+ *
+ * “Jump to key insight” (top of page):
+ *   Smooth-scrolls to #data-insight — the mold & moisture vs pests section.
+ *   If that section is missing, re-run notebooks/run_final_insight.py.
  */
 
 import { useEffect, useMemo, useState } from 'react'
@@ -232,6 +237,22 @@ function App() {
     [columns],
   )
 
+  /**
+   * Scroll the page down to the mold-vs-pests key insight.
+   * The target element id is set in ConcentrationJourney.jsx.
+   */
+  function jumpToKeyInsight() {
+    const el = document.getElementById('data-insight')
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      return
+    }
+    // Section not on the page yet — usually means the analysis JSON needs a refresh
+    window.alert(
+      'Key insight section is not available yet. From notebooks/, run: python run_final_insight.py — then reload this page.',
+    )
+  }
+
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -240,6 +261,14 @@ function App() {
           <h1>Violation inventory</h1>
         </div>
         <div className="topbar-meta">
+          {/* Sends readers straight to the bottom mold & moisture vs pests charts */}
+          <button
+            type="button"
+            className="jump-insight-btn"
+            onClick={jumpToKeyInsight}
+          >
+            Jump to key insight
+          </button>
           {cacheStatus?.api_ready ? (
             <span className="pill ok">
               {(cacheStatus.remote_rows ?? 0).toLocaleString()} live rows

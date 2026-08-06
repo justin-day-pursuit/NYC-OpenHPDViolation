@@ -73,6 +73,23 @@ body {
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
+  align-items: center;
+}
+
+/* Top-of-page jump → #data-insight (mold & moisture vs pests section) */
+.jump-insight-btn {
+  padding: 0.45rem 0.85rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line));
+  background: color-mix(in srgb, var(--accent) 10%, var(--panel));
+  color: var(--accent);
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.jump-insight-btn:hover {
+  background: color-mix(in srgb, var(--accent) 18%, var(--panel));
 }
 
 .pill {
@@ -542,6 +559,20 @@ body {
   box-shadow: var(--shadow);
 }
 
+/* Leave room under a sticky header when “Jump to key insight” scrolls here */
+#data-insight {
+  scroll-margin-top: 1rem;
+}
+
+.data-insight {
+  margin-top: 0.25rem;
+}
+
+/* Three even KPI tiles for the mold-vs-pests key insight */
+.journey-kpis.journey-kpis-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .concentration-journey h2 {
   margin: 0 0 0.35rem;
   font-size: 1.2rem;
@@ -731,6 +762,11 @@ body {
 @media (max-width: 900px) {
   .journey-kpis {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* Key insight uses 3 KPIs — stack on tablets so labels stay readable */
+  .journey-kpis.journey-kpis-3 {
+    grid-template-columns: 1fr;
   }
 
   .journey-argue-grid {

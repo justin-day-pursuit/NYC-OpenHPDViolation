@@ -9,6 +9,11 @@
  *   (live SODA aggregates, deduped by violationid). Path:
  *     /analysis/building_concentration.json
  *
+ * Bottom “Key insight” (#data-insight):
+ *   Mold & moisture vs pests in multi-dwelling buildings.
+ *   Written by notebooks/run_final_insight.py into mold_vs_pests_insight.
+ *   The top-of-page “Jump to key insight” button scrolls here.
+ *
  * How a non-technical maintainer refreshes the numbers:
  *   1) From notebooks/:  source .venv/bin/activate
  *   2) Run:              python run_building_concentration.py
@@ -39,6 +44,8 @@ import {
 const ACCENT = '#0b5fff'
 const SECONDARY = '#5c6b7a'
 const MUTED_BAR = '#b0bac4'
+/** Warm contrast for “Pests” bars next to blue moisture bars */
+const PESTS_COLOR = '#c56a1a'
 const GRID = '#d5dbe3'
 const CHART_HEIGHT = 280
 const CHART_MARGIN = { top: 8, right: 12, left: 8, bottom: 8 }
@@ -713,6 +720,129 @@ function FinalTierGradientChart({ data }) {
 }
 
 /**
+ * Key insight Chart A — Mold & moisture vs Pests as % of open violations.
+ * Compares citywide inventory to high-burden multi-dwelling buildings.
+ * Y-axis always starts at 0 so bar heights are fair to compare.
+ */
+function MoldVsPestsCompareChart({ data }) {
+  // Show citywide + multi-dwelling top 200 only (clearest two-way contrast)
+  const points = Array.isArray(data) ? data.slice(0, 2) : []
+  if (!points.length) return null
+  const yMax = Math.max(
+    ...points.flatMap((p) => [
+      Number(p.mold_moisture_pct) || 0,
+      Number(p.pests_pct) || 0,
+    ]),
+    1,
+  )
+
+  return (
+    <ChartCard title="Which issue shows up more often in open violations?">
+      <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
+        <BarChart data={points} margin={CHART_MARGIN}>
+          <CartesianGrid strokeDasharray="3 3" stroke={GRID} />
+          <XAxis dataKey="short" tick={{ fontSize: 11 }} interval={0} />
+          <YAxis
+            domain={[0, Math.ceil(yMax * 1.2)]}
+            tick={{ fontSize: 12 }}
+            tickFormatter={(v) => `${v}%`}
+            label={{
+              value: '% of open violations',
+              angle: -90,
+              position: 'insideLeft',
+              style: { fontSize: 11, fill: SECONDARY },
+            }}
+          />
+          <Tooltip
+            formatter={(value, name) => [
+              typeof value === 'number' ? `${value}%` : value,
+              name,
+            ]}
+          />
+          <Legend />
+          <Bar
+            dataKey="mold_moisture_pct"
+            name="Mold & moisture"
+            fill={ACCENT}
+            maxBarSize={40}
+          />
+          <Bar
+            dataKey="pests_pct"
+            name="Pests"
+            fill={PESTS_COLOR}
+            maxBarSize={40}
+          />
+        </BarChart>
+      </ResponsiveContainer>
+      <p className="meta-line" style={{ marginTop: '0.5rem' }}>
+        Taller blue bar = mold & moisture are a bigger share of open cases.
+        Citywide, pests lead; in high-burden multi-dwellings, moisture leads.
+      </p>
+    </ChartCard>
+  )
+}
+
+/**
+ * Key insight Chart B — how each issue changes vs the city average.
+ * Lift of 1.0 means “same share as citywide”; above 1 means more common
+ * in high-burden multi-dwellings. Y-axis starts at 0.
+ */
+function MoldVsPestsLiftChart({ data }) {
+  const points = Array.isArray(data) ? data : []
+  if (!points.length) return null
+  const yMax = Math.max(...points.map((p) => Number(p.lift) || 0), 1)
+
+  return (
+    <ChartCard title="Compared with the city average, who rises or falls?">
+      <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
+        <BarChart data={points} margin={CHART_MARGIN}>
+          <CartesianGrid strokeDasharray="3 3" stroke={GRID} />
+          <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+          <YAxis
+            domain={[0, Math.ceil(yMax * 1.25 * 10) / 10]}
+            tick={{ fontSize: 12 }}
+            tickFormatter={(v) => `${v}×`}
+            label={{
+              value: 'Times citywide rate',
+              angle: -90,
+              position: 'insideLeft',
+              style: { fontSize: 11, fill: SECONDARY },
+            }}
+          />
+          <Tooltip
+            formatter={(value, _name, item) => {
+              const delta = item?.payload?.delta_pp
+              const dir = item?.payload?.direction
+              const base =
+                typeof value === 'number' ? `${value.toLocaleString()}× city` : value
+              const extra = [
+                delta != null ? `${delta > 0 ? '+' : ''}${delta} percentage points` : null,
+                dir,
+              ]
+                .filter(Boolean)
+                .join(' · ')
+              return [extra ? `${base} (${extra})` : base, 'Relative to city']
+            }}
+          />
+          <Bar dataKey="lift" name="Relative to citywide" maxBarSize={48}>
+            {points.map((entry) => (
+              <Cell
+                key={entry.name}
+                fill={entry.highlight ? ACCENT : PESTS_COLOR}
+              />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+      <p className="meta-line" style={{ marginTop: '0.5rem' }}>
+        1.0× = same as citywide. Blue (moisture) rises in high-burden
+        multi-dwellings; orange (pests) falls — validating the flip.
+      </p>
+    </ChartCard>
+  )
+}
+
+/**
  * Final insight — multi-dwelling vs limited-unit building counts.
  * Shows single-ish stock is absent from the top open-violation tier.
  */
@@ -1250,6 +1380,116 @@ export default function ConcentrationJourney() {
             </div>
           )}
 
+          {/*
+            Key insight destination — topbar “Jump to key insight” scrolls here.
+            id="data-insight" must stay stable for that button.
+            Data: mold_vs_pests_insight from notebooks/run_final_insight.py
+          */}
+          {data.mold_vs_pests_insight?.finding && (
+            <div
+              id="data-insight"
+              className="journey-step journey-final data-insight"
+              aria-label="Key data insight: mold and moisture versus pests"
+            >
+              <h3 className="journey-step-title">
+                Key insight — {data.mold_vs_pests_insight.finding.title}
+              </h3>
+
+              <p className="journey-claim journey-claim-final">
+                {data.mold_vs_pests_insight.finding.one_sentence ||
+                  data.mold_vs_pests_insight.finding.statement}
+              </p>
+
+              <p className="lede-sm">
+                An <strong>open violation</strong> is a housing problem HPD has
+                recorded that is still not closed. Below we compare two common
+                problem types — <strong>mold &amp; moisture</strong> (mold,
+                leaks, plumbing, water damage) and <strong>pests</strong>{' '}
+                (roaches, mice, vermin, bedbugs) — across all NYC opens versus
+                multi-dwelling buildings with the heaviest open caseloads.
+              </p>
+
+              <div
+                className="journey-kpis journey-kpis-3"
+                aria-label="Mold versus pests key numbers"
+              >
+                <div className="journey-kpi journey-kpi-accent">
+                  <span className="journey-kpi-value">
+                    {headlines.mvp_multi_mw_pct ??
+                      data.mold_vs_pests_insight.multi_dwelling_top200
+                        ?.mold_water_pct}
+                    %
+                  </span>
+                  <span className="journey-kpi-label">
+                    mold &amp; moisture share of opens in high-burden
+                    multi-dwellings
+                  </span>
+                </div>
+                <div className="journey-kpi">
+                  <span className="journey-kpi-value">
+                    {headlines.mvp_multi_pests_pct ??
+                      data.mold_vs_pests_insight.multi_dwelling_top200?.pests_pct}
+                    %
+                  </span>
+                  <span className="journey-kpi-label">
+                    pests share of opens in the same multi-dwelling buildings
+                  </span>
+                </div>
+                <div className="journey-kpi">
+                  <span className="journey-kpi-value">
+                    {headlines.mvp_city_pests_pct ??
+                      data.mold_vs_pests_insight.citywide?.pests_pct}
+                    % vs{' '}
+                    {headlines.mvp_city_mw_pct ??
+                      data.mold_vs_pests_insight.citywide?.mold_water_pct}
+                    %
+                  </span>
+                  <span className="journey-kpi-label">
+                    citywide ranking is the reverse (pests vs mold &amp;
+                    moisture)
+                  </span>
+                </div>
+              </div>
+
+              <ul className="journey-points">
+                <li>
+                  <strong>What this shows:</strong>{' '}
+                  {data.mold_vs_pests_insight.finding.why_it_matters}
+                </li>
+                <li>
+                  <strong>Detail:</strong>{' '}
+                  {data.mold_vs_pests_insight.finding.statement}
+                </li>
+                <li>
+                  <strong>How we measured:</strong>{' '}
+                  {data.mold_vs_pests_insight.finding.method_note}
+                </li>
+              </ul>
+
+              <div className="stats-grid journey-grid">
+                <MoldVsPestsCompareChart
+                  data={
+                    charts.mold_vs_pests_compare ||
+                    data.mold_vs_pests_insight.charts?.compare
+                  }
+                />
+                <MoldVsPestsLiftChart
+                  data={
+                    charts.mold_vs_pests_lift ||
+                    data.mold_vs_pests_insight.charts?.lift
+                  }
+                />
+              </div>
+
+              {(data.mold_vs_pests_insight.finding.caveats || []).length > 0 && (
+                <p className="meta-line" style={{ marginTop: '0.35rem' }}>
+                  Notes for readers:{' '}
+                  {data.mold_vs_pests_insight.finding.caveats.join(' ')}
+                </p>
+              )}
+            </div>
+          )}
+
           <p className="meta-line">
             Source: NYC Open Data Open HPD Violations ({meta.dataset_id}) ·{' '}
             {meta.scope} · Deduped by violationid · Snapshot{' '}
@@ -1259,6 +1499,9 @@ export default function ConcentrationJourney() {
               : ''}
             {meta.final_insight_analyzed_at
               ? ` · Final insight ${formatGeneratedAt(meta.final_insight_analyzed_at)}`
+              : ''}
+            {meta.mold_vs_pests_analyzed_at
+              ? ` · Mold vs pests ${formatGeneratedAt(meta.mold_vs_pests_analyzed_at)}`
               : ''}
             . Refresh with{' '}
             <code>notebooks/run_building_concentration.py</code>,{' '}

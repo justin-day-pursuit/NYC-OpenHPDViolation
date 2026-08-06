@@ -175,7 +175,9 @@ python run_building_concentration.py
 # Requires Option C JSON first. Usually 2–5 minutes.
 python run_hazard_theme_analysis.py
 
-# Option E — final insight (Class B moisture × multi-dwelling × age×theme)
+# Option E — final insight + mold/moisture vs pests key insight
+# (Class B moisture × multi-dwelling × age×theme, plus the bottom-of-page
+#  “Key insight” charts comparing mold & moisture to pests).
 # Requires Option C JSON first. Usually a few minutes.
 python run_final_insight.py
 ```
@@ -185,6 +187,11 @@ Needs `SOCRATA_APP_TOKEN` in the root `.env`. First COUNT/GROUP BY calls can tak
 
 The **Analysis journey** block on the homepage (directly under Overview charts) reads
 `frontend/public/analysis/building_concentration.json`. Re-run Options C → D → E to refresh it.
+
+The bottom **Key insight** section (`#data-insight`) shows mold & moisture vs pests
+in high-burden multi-dwelling buildings. Use the top-of-page **Jump to key insight**
+button to scroll there. That block is written by Option E (`mold_vs_pests_insight`
+in the same JSON file).
 
 ---
 
@@ -213,10 +220,11 @@ The **Analysis journey** block on the homepage (directly under Overview charts) 
 │       └── config.py         # Reads root .env
 └── frontend/                 # React (Vite)
     └── src/
-        ├── App.jsx              # Main page UI
-        ├── StatsDashboard.jsx   # SQL overview charts (no AI)
-        ├── AnalysisPanel.jsx    # Gemini prompt + charts/tables
-        └── api.js               # Calls Django
+        ├── App.jsx                   # Main page UI (+ Jump to key insight)
+        ├── StatsDashboard.jsx        # SQL overview charts (no AI)
+        ├── ConcentrationJourney.jsx  # Analysis journey + #data-insight
+        ├── AnalysisPanel.jsx         # Gemini prompt + charts/tables
+        └── api.js                    # Calls Django
 ```
 
 ---
