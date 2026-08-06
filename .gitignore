@@ -62,6 +62,8 @@ backend/data/
 node_modules/
 frontend/dist/
 frontend/build/
+# snapshot/ IS committed on purpose — Vercel serves that static folder.
+# Rebuild it with: ./scripts/update-snapshot.sh
 .npm
 .yarn
 *.tsbuildinfo

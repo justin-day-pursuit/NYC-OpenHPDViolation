@@ -180,6 +180,11 @@ python run_hazard_theme_analysis.py
 #  “Key insight” charts comparing mold & moisture to pests).
 # Requires Option C JSON first. Usually a few minutes.
 python run_final_insight.py
+
+# Option F — refresh the public static site (Vercel) after C→D→E or UI edits
+cd ..
+./scripts/update-snapshot.sh
+# then: git add snapshot frontend/public/analysis && git commit && git push
 ```
 
 Needs `SOCRATA_APP_TOKEN` in the root `.env`. First COUNT/GROUP BY calls can take
@@ -195,41 +200,77 @@ in the same JSON file).
 
 ---
 
-## 5) Project map (where to edit things)
+## 5) Public deploy (Vercel static snapshot)
+
+**GitHub Pages and Vercel are static hosts** — they cannot run Django or FastAPI.
+This project keeps local fullstack development unchanged, and publishes a separate
+committed static site in [`snapshot/`](snapshot/).
+
+| Mode | What works |
+| --- | --- |
+| Local (`npm run dev` + Django + AI) | Inventory, overview charts, AI, Analysis journey |
+| Public (`snapshot/` on Vercel) | Analysis journey + key insight (baked JSON); Jump CTA + Back to top |
+
+### Refresh the snapshot after UI or data changes
+
+```bash
+# From the project root (after notebooks C→D→E if data changed)
+./scripts/update-snapshot.sh
+git add snapshot frontend/public/analysis
+git commit -m "Refresh static snapshot"
+git push
+```
+
+### Connect Vercel
+
+1. Import this GitHub repo in Vercel.
+2. Root [`vercel.json`](vercel.json) already points `outputDirectory` at `snapshot/`
+   (no install/build on Vercel — the snapshot is pre-built and committed).
+3. Redeploy happens automatically on push when `snapshot/` changes.
+
+Do **not** edit `snapshot/` by hand — see [`snapshot/README.md`](snapshot/README.md).
+
+---
+
+## 6) Project map (where to edit things)
 
 ```text
 .
 ├── .env.example              # Template for secrets — copy to .env
 ├── .gitignore                # Keeps .env, venvs, node_modules out of git
+├── vercel.json               # Vercel serves snapshot/ (static)
 ├── README.md
-├── scripts/test-builds.sh    # Local/CI build checks
+├── scripts/
+│   ├── test-builds.sh        # Local/CI build checks
+│   └── update-snapshot.sh    # Rebuild snapshot/ for Vercel
+├── snapshot/                 # Committed static site (do not edit by hand)
 ├── notebooks/                # Live SODA pandas analysis (same source as the app)
 │   ├── soda_live.py          # API helpers (sodapy)
 │   ├── open_hpd_live_analysis.ipynb
 │   ├── run_live_analysis.py  # Same analysis without Jupyter
 │   └── run_building_concentration.py  # Building concentration → website JSON
-├── frontend/public/analysis/ # Snapshot JSON for the Analysis journey section
-├── backend/                  # Django + DRF (live SODA queries, no data cache file)
+├── frontend/public/analysis/ # Analysis JSON (source of truth for journey)
+├── backend/                  # Django + DRF (local live SODA; not deployed to Vercel)
 │   ├── manage.py
 │   ├── config/               # Project settings + root URLs
 │   └── violations/           # SODA client, list/stats/AI context APIs
-├── ai-service/               # FastAPI + Gemini
+├── ai-service/               # FastAPI + Gemini (local only)
 │   └── app/
 │       ├── main.py           # HTTP routes
 │       ├── gemini_client.py  # Talks to Google Gemini
 │       └── config.py         # Reads root .env
-└── frontend/                 # React (Vite)
+└── frontend/                 # React (Vite) — edit here, then update-snapshot.sh
     └── src/
-        ├── App.jsx                   # Main page UI (+ Jump to key insight)
+        ├── App.jsx                   # Main page UI (+ Jump / Back to top)
         ├── StatsDashboard.jsx        # SQL overview charts (no AI)
         ├── ConcentrationJourney.jsx  # Analysis journey + #data-insight
         ├── AnalysisPanel.jsx         # Gemini prompt + charts/tables
-        └── api.js                    # Calls Django
+        └── api.js                    # Calls Django (disabled in static snapshot)
 ```
 
 ---
 
-## 6) Common problems
+## 7) Common problems
 
 | Symptom | Likely fix |
 | --- | --- |
@@ -242,7 +283,7 @@ in the same JSON file).
 
 ---
 
-## 7) Security notes
+## 8) Security notes
 
 - Never commit `.env`
 - Never put the Gemini key in frontend code or any `VITE_` variable

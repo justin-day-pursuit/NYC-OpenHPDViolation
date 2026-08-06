@@ -29,7 +29,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import { fetchSodaStats } from './api'
+import { STATIC_LOCAL_ONLY_NOTE, fetchSodaStats, isStaticSnapshot } from './api'
 
 /**
  * One bar chart card. Expects data like [{ name: "BRONX", value: 123 }, ...]
@@ -140,8 +140,9 @@ function MonthTrendChart({ title, data }) {
 }
 
 export default function StatsDashboard() {
+  const staticMode = isStaticSnapshot()
   const [stats, setStats] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(!staticMode)
   const [error, setError] = useState('')
 
   /**
@@ -149,6 +150,11 @@ export default function StatsDashboard() {
    * Used on page load and when the user clicks Refresh.
    */
   const loadStats = useCallback(() => {
+    if (isStaticSnapshot()) {
+      setLoading(false)
+      setError(STATIC_LOCAL_ONLY_NOTE)
+      return Promise.resolve(null)
+    }
     setLoading(true)
     setError('')
 
@@ -165,8 +171,9 @@ export default function StatsDashboard() {
       })
   }, [])
 
-  // Page load — ask the backend for live aggregates
+  // Page load — ask the backend for live aggregates (skipped on static snapshot)
   useEffect(() => {
+    if (staticMode) return undefined
     let cancelled = false
     setLoading(true)
     setError('')
@@ -188,7 +195,26 @@ export default function StatsDashboard() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [staticMode])
+
+  // Public Vercel snapshot: do not call Django; point readers to the journey below
+  if (staticMode) {
+    return (
+      <section className="stats-dashboard" aria-label="Overview charts unavailable on static site">
+        <div className="analysis-heading">
+          <div>
+            <h2>Overview charts</h2>
+            <p className="lede-sm">{STATIC_LOCAL_ONLY_NOTE}</p>
+            <p className="lede-sm">
+              Scroll to <strong>Analysis journey</strong>, or use{' '}
+              <strong>Jump to key insight</strong> at the top for the main finding.
+            </p>
+          </div>
+          <span className="pill muted">Local development only</span>
+        </div>
+      </section>
+    )
+  }
 
   const ready = Boolean(stats?.api_ready)
   const rowLabel = (stats?.row_count || 0).toLocaleString()

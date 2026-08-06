@@ -15,9 +15,16 @@
  * Charts and the inventory list query NYC Open Data on demand (no local cache).
  * The analysis journey section reads a snapshot JSON (see notebooks/).
  *
+ * Public static site (Vercel):
+ *   Built with VITE_STATIC_SNAPSHOT=true via scripts/update-snapshot.sh.
+ *   Live inventory/charts/AI are hidden; Analysis journey + key insight remain.
+ *
  * “Jump to key insight” (top of page):
  *   Smooth-scrolls to #data-insight — the mold & moisture vs pests section.
  *   If that section is missing, re-run notebooks/run_final_insight.py.
+ *
+ * “Back to top” (bottom-right):
+ *   Appears after you scroll down; returns to the top of the page.
  */
 
 import { useEffect, useMemo, useState } from 'react'
@@ -25,13 +32,16 @@ import AnalysisPanel from './AnalysisPanel'
 import ConcentrationJourney from './ConcentrationJourney'
 import StatsDashboard from './StatsDashboard'
 import {
+  STATIC_LOCAL_ONLY_NOTE,
   fetchSodaFilterOptions,
   fetchSodaStatus,
   fetchSodaViolations,
+  isStaticSnapshot,
 } from './api'
 import './App.css'
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100, 200]
+const BACK_TO_TOP_AFTER_PX = 480
 
 // Fallback if the API has not returned columns yet (same order as the dataset)
 const FALLBACK_COLUMNS = [
@@ -128,6 +138,8 @@ function formatCell(key, value) {
 }
 
 function App() {
+  const staticMode = isStaticSnapshot()
+
   // ---- Toolbar state -------------------------------------------------------
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
@@ -147,28 +159,32 @@ function App() {
   })
   const [cacheStatus, setCacheStatus] = useState(null)
   const [payload, setPayload] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(!staticMode)
   const [error, setError] = useState('')
+  const [showBackToTop, setShowBackToTop] = useState(false)
 
   // Debounce search so we do not query on every keystroke
   useEffect(() => {
+    if (staticMode) return undefined
     const timer = setTimeout(() => {
       setSearch(searchInput.trim())
       setPage(1)
     }, 300)
     return () => clearTimeout(timer)
-  }, [searchInput])
+  }, [searchInput, staticMode])
 
   useEffect(() => {
+    if (staticMode) return undefined
     fetchSodaFilterOptions()
       .then(setFilterOptions)
       .catch(() => {})
     fetchSodaStatus()
       .then(setCacheStatus)
       .catch(() => setCacheStatus(null))
-  }, [])
+  }, [staticMode])
 
   useEffect(() => {
+    if (staticMode) return undefined
     let cancelled = false
     setLoading(true)
     setError('')
@@ -199,7 +215,17 @@ function App() {
     return () => {
       cancelled = true
     }
-  }, [search, boro, violationClass, status, sort, order, page, pageSize])
+  }, [search, boro, violationClass, status, sort, order, page, pageSize, staticMode])
+
+  // Show the floating Back-to-top control after the visitor scrolls down
+  useEffect(() => {
+    function onScroll() {
+      setShowBackToTop(window.scrollY > BACK_TO_TOP_AFTER_PX)
+    }
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
 
   function handleSort(columnKey) {
     if (sort === columnKey) {
@@ -222,6 +248,27 @@ function App() {
     setPage(1)
   }
 
+  /**
+   * Scroll the page down to the mold-vs-pests key insight.
+   * The target element id is set in ConcentrationJourney.jsx.
+   */
+  function jumpToKeyInsight() {
+    const el = document.getElementById('data-insight')
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      return
+    }
+    // Section not on the page yet — usually means the analysis JSON needs a refresh
+    window.alert(
+      'Key insight section is not available yet. From notebooks/, run: python run_final_insight.py — then reload this page (and refresh snapshot/ for Vercel).',
+    )
+  }
+
+  /** Docs-style control: return to the top of the page. */
+  function scrollToTop() {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
   const results = payload?.results || []
   const totalPages = payload?.total_pages || 0
   const matchCount = payload?.count || 0
@@ -237,39 +284,33 @@ function App() {
     [columns],
   )
 
-  /**
-   * Scroll the page down to the mold-vs-pests key insight.
-   * The target element id is set in ConcentrationJourney.jsx.
-   */
-  function jumpToKeyInsight() {
-    const el = document.getElementById('data-insight')
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      return
-    }
-    // Section not on the page yet — usually means the analysis JSON needs a refresh
-    window.alert(
-      'Key insight section is not available yet. From notebooks/, run: python run_final_insight.py — then reload this page.',
-    )
-  }
-
   return (
     <div className="app-shell">
-      <header className="topbar">
+      <header className="topbar" id="page-top">
         <div>
           <p className="brand">NYC Open HPD Violation</p>
-          <h1>Violation inventory</h1>
+          <h1>{staticMode ? 'Open violations analysis' : 'Violation inventory'}</h1>
         </div>
         <div className="topbar-meta">
-          {/* Sends readers straight to the bottom mold & moisture vs pests charts */}
-          <button
-            type="button"
-            className="jump-insight-btn"
-            onClick={jumpToKeyInsight}
-          >
-            Jump to key insight
-          </button>
-          {cacheStatus?.api_ready ? (
+          {/*
+            Primary CTA for first-time visitors: skip the long analysis journey
+            and land on the main mold & moisture vs pests finding.
+          */}
+          <div className="jump-insight-block">
+            <button
+              type="button"
+              className="jump-insight-btn"
+              onClick={jumpToKeyInsight}
+            >
+              Jump to key insight
+            </button>
+            <p className="jump-insight-hint">
+              Skip the analysis steps — go straight to the main finding
+            </p>
+          </div>
+          {staticMode ? (
+            <span className="pill muted">Public static snapshot</span>
+          ) : cacheStatus?.api_ready ? (
             <span className="pill ok">
               {(cacheStatus.remote_rows ?? 0).toLocaleString()} live rows
             </span>
@@ -278,212 +319,245 @@ function App() {
               {cacheStatus?.error ? 'SODA API unreachable' : 'Checking SODA API…'}
             </span>
           )}
-          <span className="pill muted">live SODA · {cacheStatus?.dataset_id || 'csn4-vhvf'}</span>
-          <span className="pill muted">{columns.length} columns</span>
+          {!staticMode && (
+            <>
+              <span className="pill muted">
+                live SODA · {cacheStatus?.dataset_id || 'csn4-vhvf'}
+              </span>
+              <span className="pill muted">{columns.length} columns</span>
+            </>
+          )}
         </div>
       </header>
 
-      {/* Live SODA overview charts (no AI) + Refresh */}
+      {staticMode && (
+        <p className="static-banner" role="note">
+          {STATIC_LOCAL_ONLY_NOTE}
+        </p>
+      )}
+
+      {/* Live SODA overview charts — local only; static site shows a short note */}
       <StatsDashboard />
 
-      {/* Building concentration analysis journey (snapshot JSON under Overview) */}
+      {/* Building concentration analysis journey (works on static + local) */}
       <ConcentrationJourney />
 
-      {/* Toolbar: search / filter / sort / page size */}
-      <section className="toolbar" aria-label="List controls">
-        <label className="field grow">
-          <span>Search</span>
-          <input
-            type="search"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            placeholder="ID, street, ZIP, apartment, description…"
-          />
-        </label>
+      {/* Live inventory + AI — local development only */}
+      {!staticMode && (
+        <>
+          <section className="toolbar" aria-label="List controls">
+            <label className="field grow">
+              <span>Search</span>
+              <input
+                type="search"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder="ID, street, ZIP, apartment, description…"
+              />
+            </label>
 
-        <label className="field">
-          <span>Borough</span>
-          <select
-            value={boro}
-            onChange={(e) => {
-              setBoro(e.target.value)
-              setPage(1)
-            }}
-          >
-            <option value="">All</option>
-            {filterOptions.boro.map((value) => (
-              <option key={value} value={value}>
-                {value}
-              </option>
-            ))}
-          </select>
-        </label>
+            <label className="field">
+              <span>Borough</span>
+              <select
+                value={boro}
+                onChange={(e) => {
+                  setBoro(e.target.value)
+                  setPage(1)
+                }}
+              >
+                <option value="">All</option>
+                {filterOptions.boro.map((value) => (
+                  <option key={value} value={value}>
+                    {value}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-        <label className="field">
-          <span>Class</span>
-          <select
-            value={violationClass}
-            onChange={(e) => {
-              setViolationClass(e.target.value)
-              setPage(1)
-            }}
-          >
-            <option value="">All</option>
-            {filterOptions.class.map((value) => (
-              <option key={value} value={value}>
-                {value}
-              </option>
-            ))}
-          </select>
-        </label>
+            <label className="field">
+              <span>Class</span>
+              <select
+                value={violationClass}
+                onChange={(e) => {
+                  setViolationClass(e.target.value)
+                  setPage(1)
+                }}
+              >
+                <option value="">All</option>
+                {filterOptions.class.map((value) => (
+                  <option key={value} value={value}>
+                    {value}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-        <label className="field wide">
-          <span>Status</span>
-          <select
-            value={status}
-            onChange={(e) => {
-              setStatus(e.target.value)
-              setPage(1)
-            }}
-          >
-            <option value="">All</option>
-            {filterOptions.currentstatus.map((value) => (
-              <option key={value} value={value}>
-                {value}
-              </option>
-            ))}
-          </select>
-        </label>
+            <label className="field wide">
+              <span>Status</span>
+              <select
+                value={status}
+                onChange={(e) => {
+                  setStatus(e.target.value)
+                  setPage(1)
+                }}
+              >
+                <option value="">All</option>
+                {filterOptions.currentstatus.map((value) => (
+                  <option key={value} value={value}>
+                    {value}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-        <label className="field">
-          <span>Rows</span>
-          <select
-            value={pageSize}
-            onChange={(e) => {
-              setPageSize(Number(e.target.value))
-              setPage(1)
-            }}
-          >
-            {PAGE_SIZE_OPTIONS.map((size) => (
-              <option key={size} value={size}>
-                {size} / page
-              </option>
-            ))}
-          </select>
-        </label>
+            <label className="field">
+              <span>Rows</span>
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value))
+                  setPage(1)
+                }}
+              >
+                {PAGE_SIZE_OPTIONS.map((size) => (
+                  <option key={size} value={size}>
+                    {size} / page
+                  </option>
+                ))}
+              </select>
+            </label>
 
-        <button type="button" className="ghost-btn" onClick={clearFilters}>
-          Reset
-        </button>
-      </section>
+            <button type="button" className="ghost-btn" onClick={clearFilters}>
+              Reset
+            </button>
+          </section>
 
-      {/* Inventory list container — all columns, horizontal scroll */}
-      <section className="inventory" aria-label="Violation list">
-        <div className="inventory-status">
-          <p>
-            {loading
-              ? 'Loading…'
-              : `${matchCount.toLocaleString()} matching items · ${columns.length} columns`}
-          </p>
-          {error && <p className="error-text">{error}</p>}
-          {payload?.message && <p className="error-text">{payload.message}</p>}
-        </div>
-
-        <div className="list-frame">
-          <div className="list-scroll">
-            <div
-              className="list-header"
-              style={{ gridTemplateColumns: gridTemplate }}
-              role="row"
-            >
-              {columns.map((key) => {
-                const isActive = sort === key
-                const arrow = !isActive ? '' : order === 'asc' ? ' ↑' : ' ↓'
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    className={`col-head ${isActive ? 'active' : ''}`}
-                    onClick={() => handleSort(key)}
-                    title={`Sort by ${key}`}
-                  >
-                    {columnLabel(key)}
-                    {arrow}
-                  </button>
-                )
-              })}
+          <section className="inventory" aria-label="Violation list">
+            <div className="inventory-status">
+              <p>
+                {loading
+                  ? 'Loading…'
+                  : `${matchCount.toLocaleString()} matching items · ${columns.length} columns`}
+              </p>
+              {error && <p className="error-text">{error}</p>}
+              {payload?.message && <p className="error-text">{payload.message}</p>}
             </div>
 
-            <ul className="item-list">
-              {!loading && results.length === 0 && (
-                <li className="empty-row">No items match the current filters.</li>
-              )}
-
-              {results.map((row) => (
-                <li
-                  key={row.violationid || `${row.buildingid}-${row.novid}-${row.ordernumber}`}
-                  className="item-row"
+            <div className="list-frame">
+              <div className="list-scroll">
+                <div
+                  className="list-header"
                   style={{ gridTemplateColumns: gridTemplate }}
+                  role="row"
                 >
                   {columns.map((key) => {
-                    const display = formatCell(key, row[key])
-                    const isClass = key === 'class' && display !== '—'
+                    const isActive = sort === key
+                    const arrow = !isActive ? '' : order === 'asc' ? ' ↑' : ' ↓'
                     return (
-                      <span
+                      <button
                         key={key}
-                        className={[
-                          'cell',
-                          key.endsWith('id') || key.endsWith('date') ? 'mono' : '',
-                          key === 'novdescription' ? 'desc-cell' : '',
-                          isClass ? `class-badge class-${display}` : '',
-                        ]
-                          .filter(Boolean)
-                          .join(' ')}
-                        title={display === '—' ? `${key}: (blank)` : String(row[key] ?? '')}
+                        type="button"
+                        className={`col-head ${isActive ? 'active' : ''}`}
+                        onClick={() => handleSort(key)}
+                        title={`Sort by ${key}`}
                       >
-                        {display}
-                      </span>
+                        {columnLabel(key)}
+                        {arrow}
+                      </button>
                     )
                   })}
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
+                </div>
 
-        <div className="pager">
-          <button
-            type="button"
-            disabled={page <= 1 || loading}
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-          >
-            Previous
-          </button>
-          <span>
-            Page {page}
-            {totalPages ? ` of ${totalPages.toLocaleString()}` : ''}
-            {' · '}
-            {pageSize} rows
-          </span>
-          <button
-            type="button"
-            disabled={loading || !totalPages || page >= totalPages}
-            onClick={() => setPage((p) => p + 1)}
-          >
-            Next
-          </button>
-        </div>
-      </section>
+                <ul className="item-list">
+                  {!loading && results.length === 0 && (
+                    <li className="empty-row">No items match the current filters.</li>
+                  )}
 
-      {/* AI analysis uses the same filters as the inventory toolbar above */}
-      <AnalysisPanel
-        filters={{
-          search,
-          boro,
-          class: violationClass,
-          status,
-        }}
-      />
+                  {results.map((row) => (
+                    <li
+                      key={
+                        row.violationid ||
+                        `${row.buildingid}-${row.novid}-${row.ordernumber}`
+                      }
+                      className="item-row"
+                      style={{ gridTemplateColumns: gridTemplate }}
+                    >
+                      {columns.map((key) => {
+                        const display = formatCell(key, row[key])
+                        const isClass = key === 'class' && display !== '—'
+                        return (
+                          <span
+                            key={key}
+                            className={[
+                              'cell',
+                              key.endsWith('id') || key.endsWith('date') ? 'mono' : '',
+                              key === 'novdescription' ? 'desc-cell' : '',
+                              isClass ? `class-badge class-${display}` : '',
+                            ]
+                              .filter(Boolean)
+                              .join(' ')}
+                            title={
+                              display === '—'
+                                ? `${key}: (blank)`
+                                : String(row[key] ?? '')
+                            }
+                          >
+                            {display}
+                          </span>
+                        )
+                      })}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+
+            <div className="pager">
+              <button
+                type="button"
+                disabled={page <= 1 || loading}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              >
+                Previous
+              </button>
+              <span>
+                Page {page}
+                {totalPages ? ` of ${totalPages.toLocaleString()}` : ''}
+                {' · '}
+                {pageSize} rows
+              </span>
+              <button
+                type="button"
+                disabled={loading || !totalPages || page >= totalPages}
+                onClick={() => setPage((p) => p + 1)}
+              >
+                Next
+              </button>
+            </div>
+          </section>
+
+          <AnalysisPanel
+            filters={{
+              search,
+              boro,
+              class: violationClass,
+              status,
+            }}
+          />
+        </>
+      )}
+
+      {/* Floating control — same idea as docs sites; appears after scrolling */}
+      {showBackToTop && (
+        <button
+          type="button"
+          className="back-to-top-btn"
+          onClick={scrollToTop}
+          aria-label="Back to top of page"
+        >
+          Back to top
+        </button>
+      )}
     </div>
   )
 }

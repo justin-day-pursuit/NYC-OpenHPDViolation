@@ -19,6 +19,10 @@ How a non-technical maintainer re-runs this:
   python run_final_insight.py
   # usually a few minutes, then reload the website
   # The top-of-page “Jump to key insight” button scrolls to the new section.
+  #
+  # To update the public Vercel site (static snapshot/), also run from repo root:
+  #   ./scripts/update-snapshot.sh
+  # then commit + push snapshot/ and frontend/public/analysis/
 
 Open HPD Violations only; distinct violationid.
 """

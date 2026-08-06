@@ -32,7 +32,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import { analyzeWithAi } from './api'
+import { STATIC_LOCAL_ONLY_NOTE, analyzeWithAi, isStaticSnapshot } from './api'
 import {
   getAnalysisSessionId,
   hasSentAnalysisData,
@@ -164,6 +164,7 @@ function describeFilters(filters = {}) {
  * @param {{ filters?: { search?: string, boro?: string, class?: string, status?: string } }} props
  */
 export default function AnalysisPanel({ filters = {} }) {
+  const staticMode = isStaticSnapshot()
   const [prompt, setPrompt] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -176,8 +177,24 @@ export default function AnalysisPanel({ filters = {} }) {
 
   // When the inventory toolbar filters change, the next ask needs a new pack
   useEffect(() => {
+    if (staticMode) return
     setDataSent(hasSentAnalysisData(filters))
-  }, [filters.search, filters.boro, filters.class, filters.status])
+  }, [filters.search, filters.boro, filters.class, filters.status, staticMode])
+
+  // Public static snapshot has no AI backend — show a short local-only note
+  if (staticMode) {
+    return (
+      <section className="analysis-panel" aria-label="AI data analysis unavailable">
+        <div className="analysis-heading">
+          <div>
+            <h2>Ask AI to analyze the data</h2>
+            <p className="lede-sm">{STATIC_LOCAL_ONLY_NOTE}</p>
+          </div>
+          <span className="pill muted">Local development only</span>
+        </div>
+      </section>
+    )
+  }
 
   /**
    * Run when the user presses Enter in the prompt bar.

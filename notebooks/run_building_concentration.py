@@ -9,6 +9,9 @@ What this script does (plain English):
   4) Digs into class and status mix for the heaviest buildings.
   5) Writes a JSON file the website reads for the "Analysis journey" section.
 
+After refreshing analysis JSON for the public Vercel site, also run from the
+repo root: ./scripts/update-snapshot.sh (then commit snapshot/).
+
 How a non-technical maintainer re-runs this:
   1) Put SOCRATA_APP_TOKEN in the project-root .env file.
   2) From the notebooks/ folder:

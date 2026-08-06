@@ -19,7 +19,10 @@
  *   2) Run:              python run_building_concentration.py
  *   3) Then:             python run_hazard_theme_analysis.py
  *   4) Then:             python run_final_insight.py
- *   5) Reload this webpage.
+ *   5) Reload this webpage (local).
+ *   6) For the public Vercel site: from repo root run
+ *        ./scripts/update-snapshot.sh
+ *      then commit + push snapshot/ (and frontend/public/analysis/).
  *
  * Charts follow the same visual rules as Overview:
  *   bar axes start at 0, shared colors, even card spacing.
