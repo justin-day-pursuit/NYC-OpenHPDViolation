@@ -3,7 +3,6 @@
   "services": {
     "site": {
       "root": ".",
-      "framework": null,
       "installCommand": "npm install --prefix frontend",
       "buildCommand": "bash scripts/update-snapshot.sh",
       "outputDirectory": "snapshot",
