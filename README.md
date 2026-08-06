@@ -223,14 +223,20 @@ git push
 
 ### Connect Vercel
 
+This repo looks like a monorepo to Vercel (frontend + backend + AI folders), so
+deploy uses Vercel **Services** with a **single** static site service (Django/AI
+are not deployed).
+
 1. Import this GitHub repo in Vercel.
-2. In Project Settings, set **Root Directory** to the repo root (`.`) — not `frontend/`.
-3. Prefer Framework = **Other** (or leave blank). Root [`vercel.json`](vercel.json) sets:
-   - `installCommand` → `npm install --prefix frontend`
-   - `buildCommand` → `bash scripts/update-snapshot.sh` (builds static mode → `snapshot/`)
-   - `outputDirectory` → `snapshot`
-4. Clear any dashboard Output Directory override that conflicts with `vercel.json`.
-5. Redeploy. Vercel rebuilds `snapshot/` on every deploy so the Output Directory always exists.
+2. Project Settings → Build and Deployment:
+   - **Framework Preset** = **Services** (required when `services` is in `vercel.json`)
+   - **Root Directory** = repo root (`.`), not `frontend/`
+3. Root [`vercel.json`](vercel.json) defines one service `site` that:
+   - installs frontend deps
+   - runs `bash scripts/update-snapshot.sh`
+   - publishes `snapshot/`
+   - routes all public traffic to that service
+4. Redeploy. Do not add backend/AI as Vercel services for this project.
 
 Do **not** edit `snapshot/` by hand — see [`snapshot/README.md`](snapshot/README.md).
 Committing an updated `snapshot/` locally is still useful for previewing without Vercel.

@@ -1,27 +1,37 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "version": 2,
-  "framework": null,
-  "installCommand": "npm install --prefix frontend",
-  "buildCommand": "bash scripts/update-snapshot.sh",
-  "outputDirectory": "snapshot",
-  "cleanUrls": true,
-  "trailingSlash": false,
-  "rewrites": [
-    {
-      "source": "/((?!analysis/|assets/|.*\\..*).*)",
-      "destination": "/index.html"
-    }
-  ],
-  "headers": [
-    {
-      "source": "/analysis/(.*)",
+  "services": {
+    "site": {
+      "root": ".",
+      "framework": null,
+      "installCommand": "npm install --prefix frontend",
+      "buildCommand": "bash scripts/update-snapshot.sh",
+      "outputDirectory": "snapshot",
+      "cleanUrls": true,
+      "trailingSlash": false,
+      "rewrites": [
+        {
+          "source": "/((?!analysis/|assets/|.*\\..*).*)",
+          "destination": "/index.html"
+        }
+      ],
       "headers": [
         {
-          "key": "Cache-Control",
-          "value": "public, max-age=300, stale-while-revalidate=86400"
+          "source": "/analysis/(.*)",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "public, max-age=300, stale-while-revalidate=86400"
+            }
+          ]
         }
       ]
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": { "service": "site" }
     }
   ]
 }
