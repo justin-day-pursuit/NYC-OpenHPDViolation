@@ -639,7 +639,8 @@ def main() -> None:
                 }
             )
 
-        # Chart B: how each issue changes vs citywide (lift; 1.0 = same as city)
+        # Chart B: change vs citywide. Frontend plots delta_pp as diverging bars
+        # (above zero = rises in multi-dwellings; below = falls). lift kept for tooltips.
         mold_vs_pests_lift = [
             {
                 "name": "Mold & moisture",

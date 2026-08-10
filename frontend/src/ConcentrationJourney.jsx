@@ -25,7 +25,9 @@
  *      then commit + push snapshot/ (and frontend/public/analysis/).
  *
  * Charts follow the same visual rules as Overview:
- *   bar axes start at 0, shared colors, even card spacing.
+ *   bar axes start at 0 (except the mold/pests rise–fall chart, which
+ *   centers on 0 so increases go up and decreases go down), shared colors,
+ *   even card spacing.
  */
 
 import { useEffect, useState } from 'react'
@@ -37,6 +39,7 @@ import {
   Legend,
   Line,
   LineChart,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -786,60 +789,85 @@ function MoldVsPestsCompareChart({ data }) {
 }
 
 /**
- * Key insight Chart B — how each issue changes vs the city average.
- * Lift of 1.0 means “same share as citywide”; above 1 means more common
- * in high-burden multi-dwellings. Y-axis starts at 0.
+ * Key insight Chart B — change vs the city average (percentage points).
+ *
+ * Diverging bars around zero (the citywide baseline):
+ *   above the axis  = issue is a larger share of opens in multi-dwellings
+ *   below the axis  = issue is a smaller share of opens in multi-dwellings
+ *
+ * Uses delta_pp from the snapshot (multi − citywide), not lift multipliers,
+ * so a visitor immediately sees moisture rising and pests falling.
  */
 function MoldVsPestsLiftChart({ data }) {
   const points = Array.isArray(data) ? data : []
   if (!points.length) return null
-  const yMax = Math.max(...points.map((p) => Number(p.lift) || 0), 1)
+
+  // Symmetric domain around 0 so rise/fall lengths are fair to compare
+  const absMax = Math.max(
+    ...points.map((p) => Math.abs(Number(p.delta_pp) || 0)),
+    1,
+  )
+  const yPad = Math.ceil(absMax * 1.25 * 2) / 2 // nearest 0.5
 
   return (
     <ChartCard title="Compared with the city average, who rises or falls?">
       <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
-        <BarChart data={points} margin={CHART_MARGIN}>
+        <BarChart data={points} margin={{ ...CHART_MARGIN, left: 12 }}>
           <CartesianGrid strokeDasharray="3 3" stroke={GRID} />
           <XAxis dataKey="name" tick={{ fontSize: 12 }} />
           <YAxis
-            domain={[0, Math.ceil(yMax * 1.25 * 10) / 10]}
+            domain={[-yPad, yPad]}
             tick={{ fontSize: 12 }}
-            tickFormatter={(v) => `${v}×`}
+            tickFormatter={(v) => (v > 0 ? `+${v}` : `${v}`)}
             label={{
-              value: 'Times citywide rate',
+              value: 'Change vs citywide (percentage points)',
               angle: -90,
               position: 'insideLeft',
               style: { fontSize: 11, fill: SECONDARY },
             }}
           />
+          {/* Zero line = citywide share; bars above rise, below fall */}
+          <ReferenceLine y={0} stroke={SECONDARY} strokeWidth={1.5} />
           <Tooltip
             formatter={(value, _name, item) => {
-              const delta = item?.payload?.delta_pp
+              const city = item?.payload?.citywide_pct
+              const multi = item?.payload?.multi_dwelling_pct
+              const lift = item?.payload?.lift
               const dir = item?.payload?.direction
-              const base =
-                typeof value === 'number' ? `${value.toLocaleString()}× city` : value
+              const delta =
+                typeof value === 'number'
+                  ? `${value > 0 ? '+' : ''}${value} percentage points`
+                  : value
+              const fromTo =
+                city != null && multi != null
+                  ? `${city}% citywide → ${multi}% multi-dwelling`
+                  : null
               const extra = [
-                delta != null ? `${delta > 0 ? '+' : ''}${delta} percentage points` : null,
+                fromTo,
+                lift != null ? `${lift}× city rate` : null,
                 dir,
               ]
                 .filter(Boolean)
                 .join(' · ')
-              return [extra ? `${base} (${extra})` : base, 'Relative to city']
+              return [extra ? `${delta} (${extra})` : delta, 'vs citywide']
             }}
           />
-          <Bar dataKey="lift" name="Relative to citywide" maxBarSize={48}>
+          <Bar dataKey="delta_pp" name="Change vs citywide" maxBarSize={48}>
             {points.map((entry) => (
               <Cell
                 key={entry.name}
-                fill={entry.highlight ? ACCENT : PESTS_COLOR}
+                fill={
+                  (Number(entry.delta_pp) || 0) >= 0 ? ACCENT : PESTS_COLOR
+                }
               />
             ))}
           </Bar>
         </BarChart>
       </ResponsiveContainer>
       <p className="meta-line" style={{ marginTop: '0.5rem' }}>
-        1.0× = same as citywide. Blue (moisture) rises in high-burden
-        multi-dwellings; orange (pests) falls — validating the flip.
+        Zero = same share as citywide. Blue above the line: mold &amp; moisture
+        grow as a share of opens in high-burden multi-dwellings. Orange below:
+        pests shrink — the ranking flip at a glance.
       </p>
     </ChartCard>
   )
